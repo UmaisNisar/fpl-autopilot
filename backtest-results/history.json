@@ -1,0 +1,80 @@
+[
+  {
+    "version": "2.1.0",
+    "recordedAt": "2026-09-01T19:02:48.987Z",
+    "weights": {
+      "strengthShrinkGames": 3,
+      "leagueMeanGoals": 1.42,
+      "homeAdvantage": 1.12,
+      "ratingFloor": 0.55,
+      "ratingCeiling": 1.75,
+      "recencyWeight": 0.6,
+      "minutesRecencyWeight": 0.9,
+      "startPrior": 0.05,
+      "startPriorStrength": 1.5,
+      "recentWindow": 5,
+      "rateShrinkAppearances": 8,
+      "fullMatchMinutes": 90,
+      "starterMinutes": 78,
+      "benchMinutes": 18,
+      "starterSurvivesToHour": 0.88,
+      "assistShare": 0.72,
+      "bonusScale": 0.7,
+      "horizonDecay": 0.86,
+      "horizon": 5,
+      "freeTransferValue": 1.1,
+      "transferThreshold": 0.6,
+      "hitThreshold": 1.5,
+      "captainUpsideWeight": 0.35,
+      "benchBoostThreshold": 16,
+      "tripleCaptainThreshold": 8.5,
+      "freeHitThreshold": 14,
+      "wildcardThreshold": 22
+    },
+    "accuracy": [
+      {
+        "season": "2025-26",
+        "mae": 1.657,
+        "rmse": 2.665,
+        "spearman": 0.499,
+        "top20MeanActual": 4.556,
+        "v1Spearman": 0.469,
+        "v1Mae": 1.742
+      },
+      {
+        "season": "2024-25",
+        "mae": 1.491,
+        "rmse": 2.515,
+        "spearman": 0.533,
+        "top20MeanActual": 4.764,
+        "v1Spearman": 0.512,
+        "v1Mae": 1.558
+      }
+    ],
+    "simulation": [
+      {
+        "season": "2025-26",
+        "totals": {
+          "engine": 1833,
+          "v1-projections": 1735,
+          "hold-optimal-xi": 1305
+        },
+        "transfers": 33,
+        "hitPoints": 8,
+        "edge": 98
+      },
+      {
+        "season": "2024-25",
+        "totals": {
+          "engine": 1978,
+          "v1-projections": 1813,
+          "hold-optimal-xi": 1371
+        },
+        "transfers": 36,
+        "hitPoints": 16,
+        "edge": 165
+      }
+    ],
+    "headline": "spearman 0.516, season edge +263 pts"
+  }
+]
