@@ -1,11 +1,17 @@
 node_modules
 .next
 out
-.env.local
-.env*.local
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# Secrets. The committed template is .env.local.example.
+.env
+.env.local
+.env*.local
+
+# Vercel project link
+.vercel
 
 # Backtest data cache (see scripts/fetch-history.mjs)
 data/

@@ -38,6 +38,9 @@ fantasy.premierleague.com/entry/1234567/event/1
 | `GEMINI_MODEL` | no | Defaults to `gemini-2.5-flash` |
 | `GEMINI_MOCK` | no | `1` runs a canned plan with no API call, for UI work |
 | `NEXT_PUBLIC_DEFAULT_MANAGER_ID` | no | Skips the ID prompt entirely |
+| `NEXT_PUBLIC_DEFAULT_SQUAD` | no | 15 player ids, for before your first deadline |
+| `NEXT_PUBLIC_DEFAULT_BANK` | no | Money in the bank, in millions, to pair with the squad above |
+| `ALLOWED_MANAGER_IDS` | no | Comma-separated ids this deployment will serve. Unset means unrestricted |
 
 ---
 
@@ -114,6 +117,36 @@ minus the explanation.
 
 Every tunable number lives in `src/lib/engine/weights.ts`. Nothing else in the
 engine hard-codes a coefficient.
+
+---
+
+## Deployment
+
+Live at **https://fpl-autopilot-seven.vercel.app**, deployed from
+`UmaisNisar/fpl-autopilot` on Vercel.
+
+Two things matter for a public deployment of a single-user tool:
+
+- `ALLOWED_MANAGER_IDS` locks the API to one team. Any other manager id gets a
+  403, so a stray visitor cannot spend the owner's Gemini quota browsing other
+  people's squads.
+- `GEMINI_API_KEY` lives only in Vercel's environment. It is never committed;
+  `.env.local` is gitignored and `.env.local.example` is the template.
+
+Redeploy with `npx vercel deploy --prod`, or push to `main` if the GitHub
+integration is connected.
+
+### Before your first deadline
+
+The public API will not reveal a squad until the manager has had a deadline
+pass. Setting `NEXT_PUBLIC_DEFAULT_SQUAD` and `NEXT_PUBLIC_DEFAULT_BANK` pins
+the fifteen so the app opens straight onto the team on any device, instead of
+asking for them again. Once the first deadline passes, the real squad loads
+from the API and these are ignored.
+
+Bank has to be stated rather than derived. FPL locks in what you paid, so a
+player rising 0.1m raises your squad value without touching your bank —
+deriving it from current prices under-reports the budget by the total rise.
 
 ---
 
