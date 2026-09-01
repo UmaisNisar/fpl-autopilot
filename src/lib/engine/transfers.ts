@@ -142,7 +142,21 @@ export function evaluateTransfers(input: TransferInput): TransferAnalysis {
     );
   }
 
-  const ranked = [...options].sort((a, b) => b.net - a.net);
+  // A two-transfer plan is the same plan whichever leg is applied first, so
+  // the pair search naturally produces each one twice. Key on the unordered
+  // move set and keep the best-scoring copy.
+  const seen = new Set<string>();
+  const ranked = [...options]
+    .sort((a, b) => b.net - a.net)
+    .filter((option) => {
+      const key = option.moves
+        .map((m) => `${m.outId}>${m.inId}`)
+        .sort()
+        .join(',');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   const best = ranked[0];
   const runnerUp = ranked[1];
 

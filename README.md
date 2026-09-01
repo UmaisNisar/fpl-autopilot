@@ -135,6 +135,17 @@ One collision is worth knowing about: shadcn's `--accent` means the muted
 (and its `muted` text colour to `dim`) so the two systems can coexist without
 either quietly restyling the other.
 
+### Showing the working
+
+The engine computes far more than a single recommendation, so the UI shows it.
+Under the plan, **Why this plan** lays out the ranked transfer options with what
+each is worth against banking the transfer, the captain candidates scored on
+expectation *plus* upside, and every chip's valuation against its threshold.
+Each player on the pitch carries its expected points as a bar and a figure.
+
+This is what makes the advice checkable: "make this transfer" becomes "make this
+transfer, and here is what the alternatives were worth".
+
 Bespoke components stay bespoke — the pitch, the analyse button and the `.panel`
 surface are the design, not generic furniture. shadcn is used where it earns
 its place: focus rings, keyboard-navigable tabs, a real scroll area and
@@ -249,7 +260,8 @@ src/
                transfers, captain, chips, weights, plan, live adapter
     analysis/  decision brief for Gemini (display-only legacy projection)
     gemini/    client, prompt, validator, mock
-  components/  Dashboard, StatusRail, Pitch, PlanView, AnalyzeButton, SquadBuilder
+  components/  Dashboard, StatusRail, Pitch, PlanView, AnalyzeButton, SquadBuilder,
+               EngineBreakdown
     ui/        shadcn/ui primitives (button, input, badge, tabs, tooltip, ...)
 scripts/
   test-validator.ts        adversarial checks on the AI output validator

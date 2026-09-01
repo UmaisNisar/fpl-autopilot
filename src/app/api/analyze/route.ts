@@ -6,7 +6,7 @@ import { buildAnalysisContext } from '@/lib/analysis/dataset';
 import { GeminiError, getModelName, hasApiKey, requestPlan } from '@/lib/gemini/client';
 import { isMockEnabled, mockPlanResponse } from '@/lib/gemini/mock';
 import { buildEnginePlan, parsePlanJson, validatePlan } from '@/lib/gemini/validate';
-import type { PlanResult } from '@/lib/gemini/plan';
+import type { EngineBrief, PlanResult, PlayerMetrics } from '@/lib/gemini/plan';
 import { isManagerAllowed, parseManualSquad } from '@/lib/fpl/manual';
 
 export const dynamic = 'force-dynamic';
@@ -98,11 +98,34 @@ export async function POST(request: Request) {
       fallback = true;
     }
 
+    // Everything the engine worked out, so the UI can show its reasoning.
+    const playerMetrics: Record<number, PlayerMetrics> = {};
+    for (const p of [...engine.squad, ...engine.candidates]) {
+      playerMetrics[p.playerId] = {
+        xp: p.next,
+        xpHorizon: p.horizon,
+        xMins: Math.round(p.fixtures[0]?.expectedMinutes ?? 0),
+        haul: p.haulProbability,
+      };
+    }
+
+    const brief: EngineBrief = {
+      version: dataset.meta.engineVersion,
+      projectedPoints: engine.projectedNext,
+      transferOptions: dataset.engine.transferOptions,
+      transferIsCloseCall: dataset.engine.transferIsCloseCall,
+      captainCandidates: dataset.engine.captainCandidates,
+      captainIsCloseCall: dataset.engine.captainIsCloseCall,
+      chipEvaluations: dataset.engine.chipEvaluations,
+      playerMetrics,
+    };
+
     const result: PlanResult & { snapshot: typeof snapshot } = {
       snapshot,
       plan: validated.plan,
       resolved: validated.resolved,
       finalSquad: validated.finalSquad,
+      engine: brief,
       warnings: validated.warnings,
       fallback,
       meta: {

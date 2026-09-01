@@ -249,7 +249,13 @@ export async function buildAnalysisContext(snapshot: TeamSnapshot): Promise<Anal
     id === null ? null : (projectionById.get(id)?.name ?? null);
 
   const rollNet = engine.transfers.roll.net;
-  const transferOptions: TransferOptionBrief[] = engine.transfers.ranked.map((option) => ({
+  // Rolling is the baseline everything is judged against, so it always belongs
+  // in the list even when it ranks below the cut.
+  const ranked = engine.transfers.ranked.some((o) => o.moves.length === 0)
+    ? engine.transfers.ranked
+    : [...engine.transfers.ranked, engine.transfers.roll];
+
+  const transferOptions: TransferOptionBrief[] = ranked.map((option) => ({
     label:
       option.moves.length === 0
         ? 'ROLL (make no transfer)'

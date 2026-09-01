@@ -8,6 +8,7 @@ import type { PlanResult } from '@/lib/gemini/plan';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnalyzeButton } from './AnalyzeButton';
+import { EngineBreakdown } from './EngineBreakdown';
 import { ManagerGate } from './ManagerGate';
 import { Pitch, type PitchState } from './Pitch';
 import { PlanView } from './PlanView';
@@ -207,6 +208,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
         formation: result.plan.formation,
         incomingIds: result.resolved.in.map((p) => p.id),
         outgoing: result.resolved.out,
+        metrics: result.engine?.playerMetrics,
       };
     }
     if (!snapshot) return null;
@@ -324,10 +326,18 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
             Once a plan exists it takes the top slot -- the answer is the point
             of the page, and the pitch below becomes the picture of that answer.
           */}
-          <div ref={planRef} className="scroll-mt-6">
+          <div ref={planRef} className="flex scroll-mt-6 flex-col gap-6">
             <AnimatePresence mode="wait">
               {result && <PlanView key={result.meta.generatedAt} result={result} />}
             </AnimatePresence>
+            {result?.engine && (
+              <EngineBreakdown
+                key={`${result.meta.generatedAt}-engine`}
+                engine={result.engine}
+                chosenMoves={result.plan.transfer.moves.map((m) => ({ out: m.out, in: m.in }))}
+                captain={result.plan.captain}
+              />
+            )}
           </div>
 
           {analyseError && (

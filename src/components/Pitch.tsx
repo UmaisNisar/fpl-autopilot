@@ -6,6 +6,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { SquadPlayer } from '@/lib/fpl/model';
 import type { PositionShort } from '@/lib/fpl/types';
 
+/** Engine numbers per player id, so each card can show what it is worth. */
+export interface PitchMetrics {
+  [playerId: number]: { xp: number; xpHorizon: number; xMins: number; haul: number };
+}
+
 export interface PitchState {
   startingXi: SquadPlayer[];
   bench: SquadPlayer[];
@@ -16,6 +21,8 @@ export interface PitchState {
   incomingIds?: number[];
   /** Players leaving via the recommended transfer, shown beside the bench. */
   outgoing?: SquadPlayer[];
+  /** Expected points and minutes, shown on each card once analysis has run. */
+  metrics?: PitchMetrics;
 }
 
 const ROWS: PositionShort[] = ['GKP', 'DEF', 'MID', 'FWD'];
@@ -74,9 +81,21 @@ interface CardProps {
   incoming?: boolean;
   benched?: boolean;
   benchIndex?: number;
+  metric?: { xp: number; xpHorizon: number; xMins: number; haul: number };
+  /** Highest expected points in the squad, so the bars share a scale. */
+  scaleMax?: number;
 }
 
-function PlayerCard({ player, captain, vice, incoming, benched, benchIndex }: CardProps) {
+function PlayerCard({
+  player,
+  captain,
+  vice,
+  incoming,
+  benched,
+  benchIndex,
+  metric,
+  scaleMax,
+}: CardProps) {
   const unavailable = player.status !== 'a';
 
   return (
@@ -149,12 +168,47 @@ function PlayerCard({ player, captain, vice, incoming, benched, benchIndex }: Ca
       </div>
 
       <NextFixture player={player} />
+
+      {/* Expected points, once the engine has run. The bar is scaled to the
+          best player in the squad so the cards are comparable at a glance. */}
+      {metric && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="mt-0.5 flex w-full flex-col gap-1">
+              <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.07]">
+                <div
+                  className={`h-full rounded-full ${captain ? 'bg-violet' : 'bg-brand'}`}
+                  style={{
+                    width: `${Math.max(4, Math.min(100, (metric.xp / Math.max(0.1, scaleMax ?? metric.xp)) * 100))}%`,
+                  }}
+                />
+              </div>
+              <span className="nums text-center text-[9px] leading-none text-dim">
+                {metric.xp.toFixed(1)} xP
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="text-xs">
+            <span className="nums">
+              {metric.xp.toFixed(1)} expected points · {metric.xMins} mins ·{' '}
+              {Math.round(metric.haul * 100)}% haul
+            </span>
+          </TooltipContent>
+        </Tooltip>
+      )}
     </motion.div>
   );
 }
 
 export function Pitch({ state }: { state: PitchState }) {
   const incoming = new Set(state.incomingIds ?? []);
+  const metrics = state.metrics;
+  const scaleMax = metrics
+    ? Math.max(
+        0.1,
+        ...[...state.startingXi, ...state.bench].map((p) => metrics[p.id]?.xp ?? 0),
+      )
+    : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -182,6 +236,8 @@ export function Pitch({ state }: { state: PitchState }) {
                       captain={player.id === state.captainId}
                       vice={player.id === state.viceCaptainId}
                       incoming={incoming.has(player.id)}
+                      metric={metrics?.[player.id]}
+                      scaleMax={scaleMax}
                     />
                   ))}
                 </AnimatePresence>
@@ -204,6 +260,8 @@ export function Pitch({ state }: { state: PitchState }) {
                   benched
                   incoming={incoming.has(player.id)}
                   benchIndex={player.position === 'GKP' ? undefined : index}
+                  metric={metrics?.[player.id]}
+                  scaleMax={scaleMax}
                 />
               ))}
             </AnimatePresence>

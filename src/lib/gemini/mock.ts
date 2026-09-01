@@ -54,7 +54,7 @@ export function mockPlanResponse(dataset: AnalysisDataset): string {
       rec.action === 'hold'
         ? 'Nothing in the squad justifies spending the transfer this week.'
         : `The engine rates ${rec.moves.map((m) => `${m.out} to ${m.in}`).join(' and ')} as the best available move.`
-    } Captain ${rec.captain ?? 'your best starter'}; the plan projects ${rec.projectedNextGameweek} points. ${chipNote}`,
+    } Captain ${rec.captain ?? 'your best starter'}; the plan projects ${rec.projectedNextGameweek.toFixed(1)} points. ${chipNote}`,
   });
 }
 
