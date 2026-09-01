@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ManualSquad, SquadPlayer, TeamSnapshot } from '@/lib/fpl/model';
 import type { PlanResult } from '@/lib/gemini/plan';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AnalyzeButton } from './AnalyzeButton';
 import { ManagerGate } from './ManagerGate';
 import { Pitch, type PitchState } from './Pitch';
@@ -244,7 +246,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-accent/30 bg-accent/[0.08] text-accent">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand/30 bg-brand/[0.08] text-brand">
             ⚡
           </span>
           <div className="flex flex-col">
@@ -252,7 +254,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
               FPL Autopilot
             </h1>
             {snapshot && (
-              <span className="text-xs text-muted">
+              <span className="text-xs text-dim">
                 {snapshot.manager.teamName} · {snapshot.manager.name}
               </span>
             )}
@@ -261,31 +263,35 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
 
         <div className="flex items-center gap-2">
           {snapshot?.manualSquad && (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setNeedsSquad(true);
                 setSnapshot(null);
                 setResult(null);
               }}
-              className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent"
+              className="border-line text-dim hover:border-brand/40 hover:text-brand"
             >
               Edit squad
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={reset}
-            className="nums rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-line-bright hover:text-text"
+            className="nums border-line text-dim hover:border-line-bright hover:text-text"
           >
             ID {managerId}
-          </button>
+          </Button>
         </div>
       </header>
 
       {loading && !snapshot && (
-        <div className="panel flex items-center justify-center px-6 py-20 text-sm text-muted">
-          Loading your squad…
+        <div className="flex flex-col gap-6" aria-busy aria-label="Loading your squad">
+          <Skeleton className="h-[168px] w-full rounded-[14px] bg-white/[0.03]" />
+          <Skeleton className="h-[420px] w-full rounded-[14px] bg-white/[0.03]" />
+          <Skeleton className="h-[104px] w-full rounded-2xl bg-white/[0.03]" />
         </div>
       )}
 
@@ -304,13 +310,9 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
       {loadError && !snapshot && !needsSquad && (
         <div className="panel flex flex-col items-center gap-4 px-6 py-16 text-center">
           <p className="text-sm text-rose">{loadError}</p>
-          <button
-            type="button"
-            onClick={reset}
-            className="rounded-lg border border-line px-4 py-2 text-xs font-semibold text-muted transition-colors hover:text-text"
-          >
+          <Button variant="outline" size="sm" onClick={reset} className="border-line text-dim">
             Use a different manager ID
-          </button>
+          </Button>
         </div>
       )}
 

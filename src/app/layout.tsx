@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
+import { TooltipProvider } from '@/components/ui/tooltip';
+
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -13,7 +15,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // Dark-only by design; the class is set here rather than toggled so shadcn
+    // components that key off it resolve to the right palette.
+    <html lang="en" className="dark">
       <head>
         {/* Linked rather than bundled so the app still renders offline. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

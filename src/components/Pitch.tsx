@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { SquadPlayer } from '@/lib/fpl/model';
 import type { PositionShort } from '@/lib/fpl/types';
 
@@ -21,9 +22,9 @@ const ROWS: PositionShort[] = ['GKP', 'DEF', 'MID', 'FWD'];
 
 /** Fixture difficulty 1 (easiest) to 5 (hardest). */
 const FDR_STYLE: Record<number, string> = {
-  1: 'bg-accent/15 text-accent',
-  2: 'bg-accent/10 text-accent/80',
-  3: 'bg-white/[0.06] text-muted',
+  1: 'bg-brand/15 text-brand',
+  2: 'bg-brand/10 text-brand/80',
+  3: 'bg-white/[0.06] text-dim',
   4: 'bg-amber/10 text-amber',
   5: 'bg-rose/15 text-rose',
 };
@@ -49,14 +50,20 @@ function NextFixture({ player }: { player: SquadPlayer }) {
     .join(' + ');
 
   return (
-    <span
-      className={`rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${
-        FDR_STYLE[next.difficulty] ?? FDR_STYLE[3]
-      }`}
-      title={`Gameweek ${next.event} · difficulty ${next.difficulty}`}
-    >
-      {label}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={`rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${
+            FDR_STYLE[next.difficulty] ?? FDR_STYLE[3]
+          }`}
+        >
+          {label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        Gameweek {next.event} · difficulty {next.difficulty} of 5
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -79,7 +86,7 @@ function PlayerCard({ player, captain, vice, incoming, benched, benchIndex }: Ca
       transition={{ type: 'spring', stiffness: 320, damping: 34 }}
       className={`group relative flex w-[63px] flex-col items-center gap-1 rounded-lg border px-1 pb-1.5 pt-2 backdrop-blur-sm transition-colors sm:w-[86px] sm:px-1.5 ${
         incoming
-          ? 'border-accent/60 bg-accent/[0.08]'
+          ? 'border-brand/60 bg-brand/[0.08]'
           : captain
             ? 'border-violet/50 bg-violet/[0.07]'
             : 'border-white/[0.07] bg-black/40 hover:border-white/[0.14]'
@@ -96,13 +103,13 @@ function PlayerCard({ player, captain, vice, incoming, benched, benchIndex }: Ca
       )}
 
       {incoming && (
-        <span className="absolute -left-1.5 -top-1.5 rounded-full bg-accent px-1.5 py-px text-[9px] font-extrabold text-void">
+        <span className="absolute -left-1.5 -top-1.5 rounded-full bg-brand px-1.5 py-px text-[9px] font-extrabold text-void">
           IN
         </span>
       )}
 
       {benchIndex !== undefined && (
-        <span className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-line-bright bg-ink text-[10px] font-bold text-muted">
+        <span className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-line-bright bg-ink text-[10px] font-bold text-dim">
           {benchIndex}
         </span>
       )}
@@ -128,12 +135,16 @@ function PlayerCard({ player, captain, vice, incoming, benched, benchIndex }: Ca
         <span className="text-[9px] font-bold uppercase tracking-wider text-faint">
           {player.position}
         </span>
-        <span className="nums text-[9px] text-muted">£{player.price.toFixed(1)}</span>
+        <span className="nums text-[9px] text-dim">£{player.price.toFixed(1)}</span>
         {unavailable && (
-          <span
-            className="h-1.5 w-1.5 rounded-full bg-rose"
-            title={player.news || 'Availability doubt'}
-          />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="h-1.5 w-1.5 rounded-full bg-rose" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-56">
+              {player.news || 'Availability doubt'}
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 

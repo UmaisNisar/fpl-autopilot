@@ -120,6 +120,30 @@ engine hard-codes a coefficient.
 
 ---
 
+## UI
+
+Tailwind CSS v4, Framer Motion, and **shadcn/ui** on Radix primitives.
+
+shadcn's components are written against semantic CSS variables
+(`--background`, `--primary`, `--border`), so rather than accept its default
+grey those are pointed at this app's own palette in `globals.css`. A `Button`
+therefore arrives already looking like it belongs here, with no per-component
+overrides.
+
+One collision is worth knowing about: shadcn's `--accent` means the muted
+*hover surface*, not a brand colour. This app's green was renamed to `brand`
+(and its `muted` text colour to `dim`) so the two systems can coexist without
+either quietly restyling the other.
+
+Bespoke components stay bespoke — the pitch, the analyse button and the `.panel`
+surface are the design, not generic furniture. shadcn is used where it earns
+its place: focus rings, keyboard-navigable tabs, a real scroll area and
+tooltips that work on touch.
+
+Add more with `npx shadcn@latest add <component>`.
+
+---
+
 ## Deployment
 
 Live at **https://fpl-autopilot-seven.vercel.app**, deployed from
@@ -226,6 +250,7 @@ src/
     analysis/  decision brief for Gemini (display-only legacy projection)
     gemini/    client, prompt, validator, mock
   components/  Dashboard, StatusRail, Pitch, PlanView, AnalyzeButton, SquadBuilder
+    ui/        shadcn/ui primitives (button, input, badge, tabs, tooltip, ...)
 scripts/
   test-validator.ts        adversarial checks on the AI output validator
   fetch-history.mjs        cache historical seasons

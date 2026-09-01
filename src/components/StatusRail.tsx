@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 
 import type { TeamSnapshot } from '@/lib/fpl/model';
 import { formatPrice, formatRank } from '@/lib/fpl/model';
+import { Badge } from '@/components/ui/badge';
 import { Countdown } from './Countdown';
 
 interface Props {
@@ -25,7 +26,7 @@ function Stat({
     <div className="flex flex-col gap-1 px-4 py-3 sm:px-5">
       <span className="eyebrow">{label}</span>
       <span
-        className={`nums text-lg font-bold leading-none ${accent ? 'text-accent' : 'text-text'}`}
+        className={`nums text-lg font-bold leading-none ${accent ? 'text-brand' : 'text-text'}`}
       >
         {value}
       </span>
@@ -53,7 +54,7 @@ export function StatusRail({ snapshot }: Props) {
             </span>
             <Countdown epoch={gameweek.deadlineEpoch} />
           </div>
-          <span className="text-xs text-muted">
+          <span className="text-xs text-dim">
             {new Date(gameweek.deadline).toLocaleString(undefined, {
               weekday: 'short',
               day: 'numeric',
@@ -71,12 +72,19 @@ export function StatusRail({ snapshot }: Props) {
               <span className="text-xs text-faint">None remaining</span>
             ) : (
               chips.available.map((chip) => (
-                <span
+                <Badge
                   key={chip}
-                  className="rounded-full border border-line-bright bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted"
+                  variant="outline"
+                  className="border-line-bright bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-dim"
                 >
-                  {chip === 'bboost' ? 'Bench Boost' : chip === '3xc' ? 'Triple Cap' : chip === 'freehit' ? 'Free Hit' : 'Wildcard'}
-                </span>
+                  {chip === 'bboost'
+                    ? 'Bench Boost'
+                    : chip === '3xc'
+                      ? 'Triple Cap'
+                      : chip === 'freehit'
+                        ? 'Free Hit'
+                        : 'Wildcard'}
+                </Badge>
               ))
             )}
           </div>

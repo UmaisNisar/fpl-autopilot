@@ -3,6 +3,9 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
 interface Props {
   onSubmit: (managerId: number) => void;
   error?: string | null;
@@ -24,7 +27,7 @@ export function ManagerGate({ onSubmit, error, busy }: Props) {
     >
       <div className="flex flex-col gap-3">
         <h1 className="text-4xl font-extrabold tracking-tight">FPL Autopilot</h1>
-        <p className="text-sm leading-relaxed text-muted">
+        <p className="text-sm leading-relaxed text-dim">
           One button, one decision. Enter your manager ID to load your squad.
         </p>
       </div>
@@ -36,23 +39,23 @@ export function ManagerGate({ onSubmit, error, busy }: Props) {
         }}
         className="flex w-full flex-col gap-3"
       >
-        <input
+        <Input
           autoFocus
           inputMode="numeric"
           value={value}
           onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
           placeholder="1234567"
           aria-label="FPL manager ID"
-          className="nums w-full rounded-xl border border-line bg-white/[0.03] px-4 py-3.5 text-center text-lg tracking-widest outline-none transition-colors placeholder:text-faint focus:border-accent/50 focus:bg-white/[0.05]"
+          className="nums h-auto rounded-xl border-line bg-white/[0.03] px-4 py-3.5 text-center text-lg tracking-widest md:text-lg"
         />
 
-        <button
+        <Button
           type="submit"
           disabled={!valid || busy}
-          className="w-full rounded-xl bg-accent px-4 py-3.5 text-sm font-bold uppercase tracking-wider text-void transition-opacity disabled:opacity-30"
+          className="h-auto w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wider"
         >
           {busy ? 'Loading squad…' : 'Load my team'}
-        </button>
+        </Button>
       </form>
 
       {error && <p className="text-sm text-rose">{error}</p>}
@@ -61,7 +64,7 @@ export function ManagerGate({ onSubmit, error, busy }: Props) {
         Find it in the URL when you view your points on the FPL site:
         <br />
         <span className="nums">fantasy.premierleague.com/entry/</span>
-        <span className="nums text-muted">1234567</span>
+        <span className="nums text-dim">1234567</span>
         <span className="nums">/event/1</span>
       </p>
     </motion.div>

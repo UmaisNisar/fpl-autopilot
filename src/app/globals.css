@@ -1,4 +1,21 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+
+/*
+ * Two palettes live here.
+ *
+ * `--color-*` under @theme are this app's own tokens -- the ones the hand-built
+ * components use directly (brand, void, line, dim, and so on).
+ *
+ * The bare `--background`, `--primary`, `--border` variables below are shadcn's
+ * contract. Its components are written against those names, so rather than
+ * accept its default grey they are pointed at this app's palette. That is what
+ * makes a shadcn Button arrive already looking like it belongs here.
+ *
+ * Note the two meanings of "accent": ours is the brand green (renamed to
+ * `brand` to keep them apart), while shadcn's `--accent` is the muted surface
+ * used for hover states.
+ */
 
 @theme {
   --color-void: #04050a;
@@ -8,11 +25,11 @@
   --color-line-bright: #252c40;
 
   --color-text: #e8ebf4;
-  --color-muted: #7b8399;
+  --color-dim: #7b8399;
   --color-faint: #4d5468;
 
-  --color-accent: #00e5a0;
-  --color-accent-dim: #0a4a3a;
+  --color-brand: #00e5a0;
+  --color-brand-dim: #0a4a3a;
   --color-violet: #a78bfa;
   --color-amber: #fbbf24;
   --color-rose: #fb7185;
@@ -25,7 +42,113 @@
   --radius-panel: 14px;
 }
 
+/* shadcn's semantic tokens, pointed at the palette above. */
+:root {
+  --radius: 0.75rem;
+
+  --background: #04050a;
+  --foreground: #e8ebf4;
+
+  --card: #0c0f19;
+  --card-foreground: #e8ebf4;
+  --popover: #0c0f19;
+  --popover-foreground: #e8ebf4;
+
+  /* Primary is the brand green, so it needs dark text on top. */
+  --primary: #00e5a0;
+  --primary-foreground: #04050a;
+
+  --secondary: #151a26;
+  --secondary-foreground: #e8ebf4;
+
+  --muted: #131722;
+  --muted-foreground: #7b8399;
+
+  /* shadcn's "accent" is the hover surface, not the brand colour. */
+  --accent: #1a1f2e;
+  --accent-foreground: #e8ebf4;
+
+  --destructive: #fb7185;
+  --destructive-foreground: #04050a;
+
+  --border: #1a1f2e;
+  --input: #252c40;
+  --ring: #00e5a0;
+
+  --chart-1: #00e5a0;
+  --chart-2: #a78bfa;
+  --chart-3: #38bdf8;
+  --chart-4: #fbbf24;
+  --chart-5: #fb7185;
+}
+
+/*
+ * The app is dark-only by design, so the dark class carries the same values
+ * rather than a second palette. Keeping the block means any shadcn component
+ * that expects it still behaves.
+ */
+.dark {
+  --background: #04050a;
+  --foreground: #e8ebf4;
+  --card: #0c0f19;
+  --card-foreground: #e8ebf4;
+  --popover: #0c0f19;
+  --popover-foreground: #e8ebf4;
+  --primary: #00e5a0;
+  --primary-foreground: #04050a;
+  --secondary: #151a26;
+  --secondary-foreground: #e8ebf4;
+  --muted: #131722;
+  --muted-foreground: #7b8399;
+  --accent: #1a1f2e;
+  --accent-foreground: #e8ebf4;
+  --destructive: #fb7185;
+  --destructive-foreground: #04050a;
+  --border: #1a1f2e;
+  --input: #252c40;
+  --ring: #00e5a0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
 @layer base {
+  * {
+    border-color: var(--border);
+  }
+
   html {
     background: var(--color-void);
     color-scheme: dark;

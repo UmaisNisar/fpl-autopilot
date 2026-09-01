@@ -2,6 +2,8 @@
 
 import { motion } from 'framer-motion';
 
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { CHIP_LABELS } from '@/lib/fpl/model';
 import type { PlanResult } from '@/lib/gemini/plan';
 
@@ -33,7 +35,7 @@ function Block({
 }
 
 const CONFIDENCE_STYLE = {
-  high: 'border-accent/40 text-accent',
+  high: 'border-brand/40 text-brand',
   medium: 'border-amber/40 text-amber',
   low: 'border-rose/40 text-rose',
 } as const;
@@ -61,13 +63,14 @@ export function PlanView({ result }: { result: PlanResult }) {
             Your gameweek plan
           </h2>
           <div className="flex items-center gap-2">
-            <span
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+            <Badge
+              variant="outline"
+              className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
                 CONFIDENCE_STYLE[plan.confidence]
               }`}
             >
               {plan.confidence} confidence
-            </span>
+            </Badge>
           </div>
         </motion.header>
 
@@ -78,7 +81,7 @@ export function PlanView({ result }: { result: PlanResult }) {
               <span className="text-3xl font-extrabold tracking-tight text-text sm:text-4xl">
                 No transfer
               </span>
-              <span className="text-sm text-muted">Roll it. Keep the flexibility.</span>
+              <span className="text-sm text-dim">Roll it. Keep the flexibility.</span>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -91,13 +94,13 @@ export function PlanView({ result }: { result: PlanResult }) {
                     {move.out}
                   </span>
                   <span className="text-xl text-faint">→</span>
-                  <span className="text-2xl font-extrabold tracking-tight text-accent sm:text-3xl">
+                  <span className="text-2xl font-extrabold tracking-tight text-brand sm:text-3xl">
                     {move.in}
                   </span>
                 </div>
               ))}
               {transfer.moves.some((m) => m.reason) && (
-                <p className="max-w-2xl text-sm leading-relaxed text-muted">
+                <p className="max-w-2xl text-sm leading-relaxed text-dim">
                   {transfer.moves.map((m) => m.reason).filter(Boolean).join(' ')}
                 </p>
               )}
@@ -105,21 +108,20 @@ export function PlanView({ result }: { result: PlanResult }) {
           )}
 
           <div>
-            <span
-              className={`inline-flex rounded-md border px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
+            <Badge
+              variant="outline"
+              className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${
                 transfer.takeHit
                   ? 'border-amber/40 bg-amber/[0.08] text-amber'
-                  : 'border-line-bright bg-white/[0.03] text-muted'
+                  : 'border-line-bright bg-white/[0.03] text-dim'
               }`}
             >
-              {transfer.takeHit
-                ? `Take a -${transfer.hitCost} hit`
-                : 'Do not take a hit'}
-            </span>
+              {transfer.takeHit ? `Take a -${transfer.hitCost} hit` : 'Do not take a hit'}
+            </Badge>
           </div>
         </Block>
 
-        <div className="hairline" />
+        <Separator className="bg-line-bright/60" />
 
         {/* --- 2 & 3 & 4 --- */}
         <div className="grid gap-8 sm:grid-cols-3">
@@ -128,7 +130,7 @@ export function PlanView({ result }: { result: PlanResult }) {
               <span className="text-2xl font-extrabold tracking-tight text-violet">
                 {plan.captain}
               </span>
-              <span className="text-xs text-muted">
+              <span className="text-xs text-dim">
                 Vice: <span className="font-semibold text-text">{plan.viceCaptain}</span>
               </span>
             </div>
@@ -139,7 +141,7 @@ export function PlanView({ result }: { result: PlanResult }) {
               <span className="nums text-2xl font-extrabold tracking-tight">
                 {plan.formation}
               </span>
-              <span className="text-xs text-muted">Marked on the pitch below</span>
+              <span className="text-xs text-dim">Marked on the pitch below</span>
             </div>
           </Block>
 
@@ -147,19 +149,19 @@ export function PlanView({ result }: { result: PlanResult }) {
             <div className="flex flex-col gap-1">
               <span
                 className={`text-2xl font-extrabold tracking-tight ${
-                  plan.chip === 'none' ? 'text-text' : 'text-accent'
+                  plan.chip === 'none' ? 'text-text' : 'text-brand'
                 }`}
               >
                 {plan.chip === 'none' ? 'No chip' : CHIP_LABELS[plan.chip]}
               </span>
-              <span className="text-xs text-muted">
+              <span className="text-xs text-dim">
                 {plan.chip === 'none' ? 'Save them for a better week' : 'Play it this gameweek'}
               </span>
             </div>
           </Block>
         </div>
 
-        <div className="hairline" />
+        <Separator className="bg-line-bright/60" />
 
         {/* --- 5. FINAL VERDICT --- */}
         <Block eyebrow="Verdict">
@@ -172,9 +174,12 @@ export function PlanView({ result }: { result: PlanResult }) {
             {plan.benchOrder.map((name, index) => (
               <span key={name} className="flex items-center gap-2">
                 {index > 0 && <span className="text-faint">→</span>}
-                <span className="rounded-md border border-line bg-white/[0.03] px-2.5 py-1 text-xs font-semibold">
+                <Badge
+                  variant="outline"
+                  className="rounded-md border-line bg-white/[0.03] px-2.5 py-1 text-xs font-semibold"
+                >
                   {name}
-                </span>
+                </Badge>
               </span>
             ))}
           </div>
@@ -187,7 +192,7 @@ export function PlanView({ result }: { result: PlanResult }) {
             </span>
             <ul className="flex flex-col gap-1">
               {result.warnings.map((warning) => (
-                <li key={warning} className="text-xs leading-relaxed text-muted">
+                <li key={warning} className="text-xs leading-relaxed text-dim">
                   {warning}
                 </li>
               ))}

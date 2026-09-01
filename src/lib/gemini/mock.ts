@@ -13,18 +13,23 @@ export function mockPlanResponse(dataset: AnalysisDataset): string {
   const { engine } = dataset;
   const rec = engine.recommendation;
 
-  const moves = rec.moves.map((m) => {
-    const option = engine.transferOptions.find((o) =>
-      o.moves.some((x) => x.out === m.out && x.in === m.in),
-    );
-    return {
-      out: m.out,
-      in: m.in,
-      reason: option
-        ? `Projected to gain ${option.gain.toFixed(1)} points over ${dataset.meta.horizonGameweeks} gameweeks, ${option.vsRoll.toFixed(1)} better than rolling.`
-        : 'Recommended by the projection model.',
-    };
-  });
+  // Match on the whole move set, not on a single leg: a two-transfer plan is
+  // one option with one combined gain, so looking each leg up separately
+  // reported the pair's total twice.
+  const chosen = engine.transferOptions.find(
+    (o) =>
+      o.moves.length === rec.moves.length &&
+      o.moves.every((x, i) => x.out === rec.moves[i].out && x.in === rec.moves[i].in),
+  );
+
+  const moves = rec.moves.map((m, index) => ({
+    out: m.out,
+    in: m.in,
+    reason:
+      index === 0 && chosen
+        ? `This plan projects ${chosen.gain.toFixed(1)} points more over ${dataset.meta.horizonGameweeks} gameweeks, ${chosen.vsRoll.toFixed(1)} better than rolling.`
+        : 'Part of the same plan.',
+  }));
 
   const chipNote =
     rec.chip === 'none'

@@ -3,6 +3,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PositionShort } from '@/lib/fpl/types';
 import type { ManualSquad } from '@/lib/fpl/model';
 
@@ -142,14 +147,14 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
         <span className="eyebrow">
           {gameweek ? `Enter your GW${gameweek} squad` : 'Enter your squad'}
         </span>
-        <p className="max-w-2xl text-sm leading-relaxed text-muted">{reason}</p>
+        <p className="max-w-2xl text-sm leading-relaxed text-dim">{reason}</p>
       </div>
 
       {/* Budget and shape, always visible while picking. */}
       <div className="grid grid-cols-2 divide-x divide-y divide-line sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
         <div className="flex flex-col gap-1 px-4 py-3">
           <span className="eyebrow">Selected</span>
-          <span className={`nums text-lg font-bold ${complete ? 'text-accent' : 'text-text'}`}>
+          <span className={`nums text-lg font-bold ${complete ? 'text-brand' : 'text-text'}`}>
             {selected.length}/15
           </span>
         </div>
@@ -166,7 +171,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
             <span className="eyebrow">{pos}</span>
             <span
               className={`nums text-lg font-bold ${
-                counts[pos] === SHAPE[pos] ? 'text-accent' : 'text-muted'
+                counts[pos] === SHAPE[pos] ? 'text-brand' : 'text-dim'
               }`}
             >
               {counts[pos]}/{SHAPE[pos]}
@@ -188,8 +193,8 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
                 exit={{ opacity: 0, scale: 0.9 }}
                 type="button"
                 onClick={() => toggle(p)}
-                title="Remove"
-                className="group flex items-center gap-1.5 rounded-md border border-line-bright bg-white/[0.04] px-2 py-1 text-xs transition-colors hover:border-rose/50 hover:bg-rose/[0.08]"
+                aria-label={`Remove ${p.name}`}
+                className="group flex h-auto items-center gap-1.5 rounded-md border border-line-bright bg-white/[0.04] px-2 py-1 text-xs transition-colors hover:border-rose/50 hover:bg-rose/[0.08]"
               >
                 <span className="text-[9px] font-bold uppercase text-faint">{p.pos}</span>
                 <span className="font-semibold">{p.name}</span>
@@ -204,52 +209,54 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
       {/* Picker. */}
       <div className="flex flex-col gap-3 border-t border-line px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-lg border border-line p-0.5">
-            {POSITIONS.map((pos) => (
-              <button
-                key={pos}
-                type="button"
-                onClick={() => setTab(pos)}
-                className={`rounded-md px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
-                  tab === pos ? 'bg-white/[0.08] text-text' : 'text-faint hover:text-muted'
-                }`}
-              >
-                {pos}
-                <span className="ml-1.5 text-[10px] opacity-60">
-                  {counts[pos]}/{SHAPE[pos]}
-                </span>
-              </button>
-            ))}
-          </div>
+          <Tabs value={tab} onValueChange={(value) => setTab(value as PositionShort)}>
+            <TabsList className="border border-line bg-transparent p-0.5">
+              {POSITIONS.map((pos) => (
+                <TabsTrigger
+                  key={pos}
+                  value={pos}
+                  className="px-3 text-xs font-bold uppercase tracking-wider data-[state=active]:bg-white/[0.08] data-[state=active]:text-text"
+                >
+                  {pos}
+                  <span className="ml-1.5 text-[10px] opacity-60">
+                    {counts[pos]}/{SHAPE[pos]}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
 
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name or club…"
-            className="min-w-[180px] flex-1 rounded-lg border border-line bg-white/[0.03] px-3 py-2 text-sm outline-none transition-colors placeholder:text-faint focus:border-accent/40"
+            aria-label="Search players"
+            className="min-w-[180px] flex-1 border-line bg-white/[0.03]"
           />
 
           <div className="flex rounded-lg border border-line p-0.5">
             {(['points', 'form', 'price'] as SortKey[]).map((key) => (
-              <button
+              <Button
                 key={key}
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => setSort(key)}
-                className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  sort === key ? 'bg-white/[0.08] text-text' : 'text-faint hover:text-muted'
+                className={`px-2.5 text-[10px] font-bold uppercase tracking-wider ${
+                  sort === key ? 'bg-white/[0.08] text-text' : 'text-faint hover:text-dim'
                 }`}
               >
                 {key}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         {loadError && <p className="text-sm text-rose">{loadError}</p>}
-        {!players && !loadError && <p className="py-8 text-center text-sm text-muted">Loading players…</p>}
+        {!players && !loadError && <p className="py-8 text-center text-sm text-dim">Loading players…</p>}
 
         {players && (
-          <div className="max-h-[380px] overflow-y-auto rounded-lg border border-line">
+          <ScrollArea className="h-[380px] rounded-lg border border-line">
             {visible.length === 0 && (
               <p className="py-8 text-center text-sm text-faint">No players match that search.</p>
             )}
@@ -275,7 +282,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
                   }
                   className={`flex w-full items-center gap-3 border-b border-line px-3 py-2 text-left transition-colors last:border-b-0 ${
                     isSelected
-                      ? 'bg-accent/[0.08]'
+                      ? 'bg-brand/[0.08]'
                       : blocked
                         ? 'cursor-not-allowed opacity-35'
                         : 'hover:bg-white/[0.03]'
@@ -283,7 +290,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
                 >
                   <span
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
-                      isSelected ? 'border-accent bg-accent text-void' : 'border-line-bright'
+                      isSelected ? 'border-brand bg-brand text-void' : 'border-line-bright'
                     }`}
                   >
                     {isSelected ? '✓' : ''}
@@ -295,7 +302,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
                   </span>
 
                   <span className="nums w-10 shrink-0 text-[11px] text-faint">{p.team}</span>
-                  <span className="nums w-12 shrink-0 text-right text-[11px] text-muted">
+                  <span className="nums w-12 shrink-0 text-right text-[11px] text-dim">
                     {p.points}pts
                   </span>
                   <span
@@ -308,7 +315,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
                 </button>
               );
             })}
-          </div>
+          </ScrollArea>
         )}
       </div>
 
@@ -317,19 +324,21 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4 sm:px-6">
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="sm"
           onClick={onCancel}
-          className="text-xs font-semibold text-faint transition-colors hover:text-muted"
+          className="px-0 text-xs font-semibold text-faint hover:text-dim"
         >
           Use a different manager ID
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="rounded-xl bg-accent px-6 py-3 text-sm font-bold uppercase tracking-wider text-void transition-opacity disabled:opacity-25"
+          className="h-auto rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wider"
         >
           {busy
             ? 'Loading squad…'
@@ -338,7 +347,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
               : complete
                 ? 'Save squad'
                 : `Pick ${15 - selected.length} more`}
-        </button>
+        </Button>
       </div>
     </motion.section>
   );
