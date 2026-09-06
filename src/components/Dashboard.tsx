@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AnalyzeButton } from './AnalyzeButton';
+import { ApplyPlan } from './ApplyPlan';
 import { EngineBreakdown } from './EngineBreakdown';
 import { ManagerGate } from './ManagerGate';
 import { Pitch, type PitchState } from './Pitch';
@@ -420,6 +421,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
             <AnimatePresence mode="wait">
               {result && <PlanView key={result.meta.generatedAt} result={result} />}
             </AnimatePresence>
+            {result && <ApplyPlan result={result} snapshot={snapshot} />}
             {result?.engine && (
               <EngineBreakdown
                 key={`${result.meta.generatedAt}-engine`}

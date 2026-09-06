@@ -189,6 +189,27 @@ deriving it from current prices under-reports the budget by the total rise.
 
 ---
 
+## Applying the plan
+
+FPL has no supported way for an app to change your team. The old scripted login
+at `users.premierleague.com/accounts/login/` — the endpoint every third-party
+FPL tool used — no longer resolves at all; authentication has moved to Firebase
+behind `account.premierleague.com`, which returns 403 to anything that is not a
+browser. The write endpoints (`/api/my-team/`, `/api/transfers/`) exist but need
+a live browser session.
+
+Working around that means storing someone's session cookie or shipping a browser
+extension, and neither is worth it to save half a minute. So the app does the
+next best thing: **Apply on FPL** lists exactly what to click and deep-links to
+the right screen.
+
+It shows only what *changes* — "start these two, bench that one", not a list of
+all fifteen — with a checkbox per step, a copy-to-clipboard for reading on a
+phone, and a per-step tag for whether it happens on the Transfers or My Team
+page. A player leaving in a transfer is never listed as one to bench.
+
+---
+
 ## Backtesting
 
 ```bash
