@@ -16,7 +16,10 @@
     "backtest:tune": "tsx scripts/backtest/tune.ts",
     "backtest": "tsx scripts/backtest/track.ts",
     "backtest:history": "tsx scripts/backtest/track.ts --show",
-    "data:fetch": "node scripts/fetch-history.mjs 2025-26 2024-25"
+    "data:fetch": "node scripts/fetch-history.mjs 2025-26 2024-25",
+    "tune:decisions": "tsx scripts/backtest/tune-decisions.ts",
+    "backtest:compare": "tsx scripts/backtest/compare.ts",
+    "fit:calibration": "tsx scripts/backtest/fit-calibration.ts"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

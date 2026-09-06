@@ -42,14 +42,46 @@ function per90(
   return w * observed + (1 - w) * prior;
 }
 
-/** Blend the recent window with the season for a per-90 rate. */
-function blendedRate(
-  season: StatLine,
-  recent: StatLine,
+/**
+ * The prior a player's own rate is shrunk toward.
+ *
+ * Last season, where we have it, beats a flat position average by a distance:
+ * it is the difference between "a midfielder" and "this midfielder, who
+ * returned 0.4 goal involvements per 90 across a full season". It is itself
+ * shrunk toward the position prior, so a twenty-minute cameo season cannot
+ * masquerade as evidence.
+ */
+function priorRate(
+  player: PlayerState,
   pick: (s: StatLine) => number,
-  prior: number,
+  positionPrior: number,
   weights: Weights,
 ): number {
+  const previous = player.previous;
+  // Zero means genuinely off, not "off but clamped to a small weight" -- the
+  // A/B that decides whether this feature earns its place depends on it.
+  if (!previous || previous.minutes <= 0 || weights.previousSeasonWeight <= 0) {
+    return positionPrior;
+  }
+
+  return per90(pick(previous), previous.minutes, positionPrior, weights, priorSeasonMinutes(weights));
+}
+
+/** Minutes of position-prior weight applied against last season's sample. */
+function priorSeasonMinutes(weights: Weights): number {
+  return (weights.rateShrinkAppearances * 90) / weights.previousSeasonWeight;
+}
+
+/** Blend the recent window with the season for a per-90 rate. */
+function blendedRate(
+  player: PlayerState,
+  pick: (s: StatLine) => number,
+  positionPrior: number,
+  weights: Weights,
+): number {
+  const { season, recent } = player;
+  const prior = priorRate(player, pick, positionPrior, weights);
+
   const seasonRate = per90(pick(season), season.minutes, prior, weights);
   if (recent.minutes <= 0) return seasonRate;
   const recentRate = per90(pick(recent), recent.minutes, prior, weights);
@@ -126,14 +158,8 @@ export function projectFixture(
   // average one for his team.
   const attackScale = teamScored / weights.leagueMeanGoals;
 
-  const xg90 = blendedRate(player.season, player.recent, (s) => s.xg || s.goals, prior.xg90, weights);
-  const xa90 = blendedRate(
-    player.season,
-    player.recent,
-    (s) => s.xa || s.assists,
-    prior.xa90,
-    weights,
-  );
+  const xg90 = blendedRate(player, (s) => s.xg || s.goals, prior.xg90, weights);
+  const xa90 = blendedRate(player, (s) => s.xa || s.assists, prior.xa90, weights);
 
   const minuteShare = minutes.expectedMinutes / 90;
   const expectedGoals = xg90 * minuteShare * attackScale;
@@ -159,7 +185,7 @@ export function projectFixture(
 
   let savePoints = 0;
   if (player.position === 'GKP') {
-    const saves90 = blendedRate(player.season, player.recent, (s) => s.saves, prior.saves90, weights);
+    const saves90 = blendedRate(player, (s) => s.saves, prior.saves90, weights);
     // Shots faced rise against stronger attacks, roughly with expected goals.
     const saveRate = saves90 * minuteShare * (teamConceded / weights.leagueMeanGoals);
     savePoints = saveRate / SAVES_PER_POINT;
@@ -169,13 +195,13 @@ export function projectFixture(
     ? expectedDefconPoints(player, minutes.expectedMinutes, weights)
     : 0;
 
-  const bonus90 = blendedRate(player.season, player.recent, (s) => s.bonus, prior.bonus90, weights);
+  const bonus90 = blendedRate(player, (s) => s.bonus, prior.bonus90, weights);
   const bonusPoints = bonus90 * minuteShare * weights.bonusScale;
 
-  const yellow90 = blendedRate(player.season, player.recent, (s) => s.yellow, prior.yellow90, weights);
+  const yellow90 = blendedRate(player, (s) => s.yellow, prior.yellow90, weights);
   const cardPoints = -(yellow90 * minuteShare);
 
-  const total =
+  const raw =
     appearance +
     goalPoints +
     assistPoints +
@@ -186,6 +212,15 @@ export function projectFixture(
     bonusPoints +
     cardPoints;
 
+  // Affine, and therefore rank-preserving: the order of players is exactly as
+  // the model produced it, only the level is corrected. See `calibrationSlope`.
+  const total = Math.max(
+    0,
+    weights.calibrationIntercept + weights.calibrationSlope * Math.max(0, raw),
+  );
+  // Keep the breakdown adding up to the calibrated total.
+  const scale = raw > 0 ? total / raw : 1;
+
   return {
     event: fixture.event,
     opponent: fixture.opponent,
@@ -195,17 +230,17 @@ export function projectFixture(
     playProbability: round3(minutes.playProbability),
     sixtyProbability: round3(minutes.sixtyProbability),
     cleanSheetProbability: round3(csProb),
-    points: round2(Math.max(0, total)),
+    points: round2(total),
     components: {
-      appearance: round2(appearance),
-      goals: round2(goalPoints),
-      assists: round2(assistPoints),
-      cleanSheet: round2(cleanSheetPoints),
-      concede: round2(concedePoints),
-      saves: round2(savePoints),
-      defcon: round2(defconPoints),
-      bonus: round2(bonusPoints),
-      cards: round2(cardPoints),
+      appearance: round2(appearance * scale),
+      goals: round2(goalPoints * scale),
+      assists: round2(assistPoints * scale),
+      cleanSheet: round2(cleanSheetPoints * scale),
+      concede: round2(concedePoints * scale),
+      saves: round2(savePoints * scale),
+      defcon: round2(defconPoints * scale),
+      bonus: round2(bonusPoints * scale),
+      cards: round2(cardPoints * scale),
     },
   };
 }
@@ -240,7 +275,12 @@ export function expectedDefconPoints(
     const w = appearances / (appearances + weights.rateShrinkAppearances);
     hitRate = w * observed + (1 - w) * modelled;
   } else {
-    const rate90 = per90(player.season.defcon, player.season.minutes, prior.defcon90, weights);
+    const rate90 = per90(
+      player.season.defcon,
+      player.season.minutes,
+      priorRate(player, (s) => s.defcon, prior.defcon90, weights),
+      weights,
+    );
     hitRate = poissonAtLeast(rate90, threshold);
   }
 

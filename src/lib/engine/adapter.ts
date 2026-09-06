@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type { FplBootstrap, FplElement, FplFixture, PositionShort } from '@/lib/fpl/types';
-import type { HistoryRow } from '@/lib/fpl/history';
+import type { HistoryRow, PastSeason, PlayerHistory } from '@/lib/fpl/history';
 import { DEFCON_THRESHOLDS } from '@/lib/fpl/history';
 import {
   emptyStatLine,
@@ -53,6 +53,30 @@ function seasonStatLine(el: FplElement, teamGames: number): StatLine {
   return line;
 }
 
+/** Last season, in the engine's stat-line shape. */
+function fromPastSeason(past: PastSeason): StatLine {
+  const line = emptyStatLine();
+  line.games = past.starts;
+  line.minutes = past.minutes;
+  line.starts = past.starts;
+  // Appearances are not published per season; starts is the honest floor.
+  line.appearances = past.starts;
+  line.goals = past.goals;
+  line.assists = past.assists;
+  line.xg = past.xg;
+  line.xa = past.xa;
+  line.cleanSheets = past.cleanSheets;
+  line.goalsConceded = past.goalsConceded;
+  line.saves = past.saves;
+  line.bonus = past.bonus;
+  line.bps = past.bps;
+  line.defcon = past.defcon;
+  line.yellow = past.yellow;
+  line.red = past.red;
+  line.points = past.points;
+  return line;
+}
+
 /** Accumulate per-gameweek rows into a stat line. */
 function fromHistory(rows: HistoryRow[], position: PositionShort): StatLine {
   const line = emptyStatLine();
@@ -89,7 +113,7 @@ export interface AdapterInput {
   event: number;
   weights: Weights;
   /** Per-player gameweek history, where it was fetched. */
-  histories?: Map<number, HistoryRow[]>;
+  histories?: Map<number, PlayerHistory>;
 }
 
 export function toWorldState(input: AdapterInput): WorldState {
@@ -151,7 +175,8 @@ export function toWorldState(input: AdapterInput): WorldState {
   const players: PlayerState[] = bootstrap.elements.map((el) => {
     const position = POSITIONS[el.element_type - 1] ?? 'MID';
     const teamGames = teamStats.get(el.team)?.played ?? 0;
-    const rows = histories?.get(el.id);
+    const history = histories?.get(el.id);
+    const rows = history?.rows;
 
     const season = rows ? fromHistory(rows, position) : seasonStatLine(el, teamGames);
     const recent = rows
@@ -160,6 +185,9 @@ export function toWorldState(input: AdapterInput): WorldState {
           position,
         )
       : emptyStatLine();
+
+    const past = history?.previous;
+    const previous = past && past.minutes > 0 ? fromPastSeason(past) : undefined;
 
     // Season totals from bootstrap have no per-appearance breakdown, so the
     // defensive-contribution hit count has to be inferred by the model instead.
@@ -176,6 +204,10 @@ export function toWorldState(input: AdapterInput): WorldState {
       news: el.news,
       season,
       recent,
+      previous,
+      // A full Premier League season is 38 matches; that is the denominator a
+      // start rate from last season needs.
+      previousTeamGames: previous ? 38 : undefined,
       teamGames: Math.max(teamGames, season.games),
     };
   });

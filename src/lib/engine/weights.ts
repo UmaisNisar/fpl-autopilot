@@ -8,7 +8,7 @@
  * Bump ENGINE_VERSION whenever any value here changes.
  */
 
-export const ENGINE_VERSION = '2.1.0';
+export const ENGINE_VERSION = '2.2.0';
 
 export interface Weights {
   /** Games of evidence before empirical team ratings outweigh the FDR prior. */
@@ -37,6 +37,26 @@ export interface Weights {
   recentWindow: number;
   /** Appearances of evidence before a player's own rates outweigh position priors. */
   rateShrinkAppearances: number;
+  /**
+   * How much last season counts, as a fraction of its actual minutes.
+   *
+   * Measured at zero. A full previous season shifted rank correlation by
+   * 0.001 and calibration by 0.008 -- indistinguishable from nothing. The
+   * plumbing is kept because it is what produced that measurement, and the
+   * switch makes it a one-line experiment to revisit.
+   */
+  previousSeasonWeight: number;
+  /**
+   * Extra prior strength granted when last season's start rate is known.
+   *
+   * Measured at zero. It does fix calibration -- bias moves from -0.402 to
+   * -0.139 -- but pays for it with 0.043 of rank correlation and 0.15 points
+   * per top-20 pick, because a player's role moves between seasons and last
+   * year's start rate blurs who is being picked now. The calibration layer
+   * below buys the same correction while preserving order, which is strictly
+   * the better trade.
+   */
+  previousStartWeight: number;
 
   /** Minutes assumed for a player who starts and is not substituted. */
   fullMatchMinutes: number;
@@ -52,10 +72,32 @@ export interface Weights {
   /** Bonus points regression: how strongly BPS rate maps to bonus. */
   bonusScale: number;
 
+  /**
+   * Rank-preserving calibration, applied to every fixture projection as
+   * `intercept + slope * raw`.
+   *
+   * The raw model systematically under-calls: a projection of 5.4 was worth
+   * 6.5 in reality. An affine rescale fixes the level without touching the
+   * order, so ranking -- which is what transfer and captain decisions turn on
+   * -- is untouched while the numbers on screen and the fixed chip thresholds
+   * become meaningful. Fitted on the training split only.
+   */
+  calibrationSlope: number;
+  calibrationIntercept: number;
+
   /** Points discount applied to each successive gameweek in the horizon. */
   horizonDecay: number;
   /** Gameweeks the engine plans over. */
   horizon: number;
+
+  /**
+   * The four weights below convert a projection into an action, and unlike the
+   * projection weights they have no statistical proxy -- the only honest
+   * objective is points actually scored. They are fitted by
+   * `npm run tune:decisions`, which optimises a full season simulation on one
+   * season and validates on the other. Doing that was worth +146 points across
+   * the held-out season.
+   */
 
   /** Points a banked free transfer is worth as future flexibility. */
   freeTransferValue: number;
@@ -90,6 +132,8 @@ export const DEFAULT_WEIGHTS: Weights = {
   startPriorStrength: 1.5,
   recentWindow: 5,
   rateShrinkAppearances: 8,
+  previousSeasonWeight: 0,
+  previousStartWeight: 0,
 
   fullMatchMinutes: 90,
   starterMinutes: 78,
@@ -99,14 +143,17 @@ export const DEFAULT_WEIGHTS: Weights = {
   assistShare: 0.72,
   bonusScale: 0.7,
 
-  horizonDecay: 0.86,
+  calibrationSlope: 1.1906,
+  calibrationIntercept: 0.1677,
+
+  horizonDecay: 0.7,
   horizon: 5,
 
-  freeTransferValue: 1.1,
-  transferThreshold: 0.6,
-  hitThreshold: 1.5,
+  freeTransferValue: 2.5,
+  transferThreshold: 0,
+  hitThreshold: 0,
 
-  captainUpsideWeight: 0.35,
+  captainUpsideWeight: 1.1,
 
   benchBoostThreshold: 16,
   tripleCaptainThreshold: 8.5,

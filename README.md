@@ -218,14 +218,45 @@ replaced.
 
 ### Current results
 
-Engine 2.1.0, walk-forward, GW6-38:
+Engine 2.2.0, walk-forward, GW6-38:
 
 | | 2025-26 | 2024-25 (out of sample) |
 | --- | --- | --- |
 | Rank correlation | 0.499 (v1: 0.469) | 0.533 (v1: 0.512) |
-| MAE | 1.657 (v1: 1.742) | 1.491 (v1: 1.558) |
-| Top-20 picks, actual pts | 4.56 (v1: 4.42) | 4.76 (v1: 4.78) |
-| **Season simulation** | **1833 pts (+98)** | **1978 pts (+165)** |
+| Top-20 picks, actual pts | 4.55 (v1: 4.42) | 4.76 (v1: 4.78) |
+| **Season simulation** | **1959 pts (+187)** | **2068 pts (+209)** |
+
+### Two weight sets, two objectives
+
+**Projection weights** are fitted by `npm run backtest:tune` against a
+statistical proxy. That objective originally subtracted MAE, which turned out
+to be a trap: most players score near zero, so on that distribution MAE rewards
+under-prediction. It bought 0.02 of rank correlation and paid with 2.4x the
+calibration error. Bias is penalised explicitly now.
+
+**Decision weights** -- when to spend a transfer, when a hit is worth it, what a
+banked transfer is worth, how far captaincy should chase upside -- have no
+proxy. `npm run tune:decisions` optimises a full season simulation directly on
+points scored, fits on one season and validates on the other. Doing that was
+worth **+146 points** on the season it was never fitted to.
+
+**Calibration** (`npm run fit:calibration`) is an affine, therefore
+rank-preserving, rescale fitted on the first half of both seasons. The raw model
+under-called badly -- a projection of 5.4 was worth 6.5 -- which mattered once
+those numbers went on screen and started being compared against fixed chip
+thresholds. Rank correlation is unchanged by construction; |bias| drops from
+0.31 to 0.17 on held-out data and from 0.73 to 0.23 early in a season.
+
+### A negative result worth keeping
+
+Last season's data is loaded and plumbed through, but weighted at **zero**.
+Measured on held-out data, last season's *rates* moved rank correlation by
+0.001 -- nothing. Last season's *start rate* did fix calibration (bias -0.402 to
+-0.139) but cost 0.043 of rank correlation, because a player's role moves
+between seasons and last year's start rate blurs who is being picked now. The
+calibration layer buys the same correction while preserving order, which is
+strictly the better trade. The switch is left in place because it is what
+produced the measurement.
 
 The simulation is the real test: every strategy starts from the same fifteen
 players and walks the season making its own transfers, lineup and captain calls.

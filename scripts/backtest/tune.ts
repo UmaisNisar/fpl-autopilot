@@ -51,6 +51,8 @@ export interface Score {
   top20: number;
   spearman: number;
   mae: number;
+  /** Mean predicted minus mean actual. Negative means under-calling. */
+  bias: number;
   /** Composite the search maximises. */
   objective: number;
 }
@@ -61,15 +63,24 @@ export interface Score {
  * Weighted toward the top of the ranking, because a manager only ever fields
  * fifteen players -- being well calibrated on players nobody owns is worth far
  * less than being right about who to pick.
+ *
+ * The earlier version of this subtracted MAE, which turned out to be a trap.
+ * Most players score near zero, so on that distribution MAE quietly rewards
+ * under-prediction: the search bought +0.02 of rank correlation and paid with
+ * 2.4x the calibration error. Bias is penalised explicitly instead, which
+ * matters now that these projections are shown on screen and compared against
+ * fixed chip thresholds.
  */
-function objectiveOf(top20: number, spearmanValue: number, mae: number): number {
-  return top20 + 4 * spearmanValue - 0.5 * mae;
+function objectiveOf(top20: number, spearmanValue: number, bias: number): number {
+  return top20 + 4 * spearmanValue - 3 * Math.abs(bias);
 }
 
 export function evaluate(split: Split, weights: Weights): Score {
   let top20Sum = 0;
   let spearmanSum = 0;
   let absError = 0;
+  let predictedSum = 0;
+  let actualSum = 0;
   let samples = 0;
   let weeks = 0;
 
@@ -89,6 +100,8 @@ export function evaluate(split: Split, weights: Weights): Score {
     top20Sum += ranked.reduce((s, r) => s + r.actual, 0) / ranked.length;
     spearmanSum += spearman(rows);
     absError += rows.reduce((s, r) => s + Math.abs(r.predicted - r.actual), 0);
+    predictedSum += rows.reduce((s, r) => s + r.predicted, 0);
+    actualSum += rows.reduce((s, r) => s + r.actual, 0);
     samples += rows.length;
     weeks += 1;
   }
@@ -96,8 +109,15 @@ export function evaluate(split: Split, weights: Weights): Score {
   const top20 = top20Sum / Math.max(1, weeks);
   const rank = spearmanSum / Math.max(1, weeks);
   const mae = absError / Math.max(1, samples);
+  const bias = (predictedSum - actualSum) / Math.max(1, samples);
 
-  return { top20: r3(top20), spearman: r3(rank), mae: r3(mae), objective: r3(objectiveOf(top20, rank, mae)) };
+  return {
+    top20: r3(top20),
+    spearman: r3(rank),
+    mae: r3(mae),
+    bias: r3(bias),
+    objective: r3(objectiveOf(top20, rank, bias)),
+  };
 }
 
 /** The knobs the search is allowed to turn, and the values it may try. */
@@ -110,6 +130,10 @@ const GRID: { key: keyof Weights; values: number[] }[] = [
   { key: 'strengthShrinkGames', values: [3, 6, 10, 16] },
   { key: 'bonusScale', values: [0.7, 0.85, 1.0, 1.15] },
   { key: 'starterSurvivesToHour', values: [0.78, 0.84, 0.88, 0.94] },
+  // Zero is included deliberately: if last season does not earn its place, the
+  // search is free to switch it off rather than have it forced on.
+  { key: 'previousSeasonWeight', values: [0, 0.15, 0.25, 0.4, 0.6] },
+  { key: 'previousStartWeight', values: [0, 0.15, 0.35, 0.6] },
 ];
 
 export function coordinateDescent(
@@ -157,7 +181,11 @@ export function coordinateDescent(
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
 function line(label: string, s: Score): string {
-  return `${label.padEnd(22)} top20 ${s.top20.toFixed(2).padStart(5)}   spearman ${s.spearman.toFixed(3)}   MAE ${s.mae.toFixed(3)}   obj ${s.objective.toFixed(3)}`;
+  return (
+    `${label.padEnd(22)} top20 ${s.top20.toFixed(2).padStart(5)}   ` +
+    `spearman ${s.spearman.toFixed(3)}   MAE ${s.mae.toFixed(3)}   ` +
+    `bias ${(s.bias >= 0 ? '+' : '') + s.bias.toFixed(3)}   obj ${s.objective.toFixed(3)}`
+  );
 }
 
 // --- CLI -------------------------------------------------------------------

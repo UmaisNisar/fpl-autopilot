@@ -61,16 +61,42 @@ interface RawHistory {
   total_points: number;
 }
 
-const cache = new Map<number, { at: number; rows: HistoryRow[] }>();
+/** A completed previous season, as FPL reports it on element-summary. */
+export interface PastSeason {
+  seasonName: string;
+  minutes: number;
+  starts: number;
+  goals: number;
+  assists: number;
+  xg: number;
+  xa: number;
+  cleanSheets: number;
+  goalsConceded: number;
+  saves: number;
+  bonus: number;
+  bps: number;
+  defcon: number;
+  yellow: number;
+  red: number;
+  points: number;
+}
+
+export interface PlayerHistory {
+  rows: HistoryRow[];
+  /** The most recently completed season, when the player has one. */
+  previous?: PastSeason;
+}
+
+const cache = new Map<number, { at: number; value: PlayerHistory }>();
 
 const num = (v: string | number | null | undefined): number => {
   const parsed = typeof v === 'number' ? v : parseFloat(v ?? '0');
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-async function fetchOne(playerId: number): Promise<HistoryRow[]> {
+async function fetchOne(playerId: number): Promise<PlayerHistory> {
   const hit = cache.get(playerId);
-  if (hit && Date.now() - hit.at < TTL_SECONDS * 1000) return hit.rows;
+  if (hit && Date.now() - hit.at < TTL_SECONDS * 1000) return hit.value;
 
   let res: Response;
   try {
@@ -84,7 +110,10 @@ async function fetchOne(playerId: number): Promise<HistoryRow[]> {
 
   if (!res.ok) throw new FplError(`History unavailable for player ${playerId}.`, res.status);
 
-  const body = (await res.json()) as { history?: RawHistory[] };
+  const body = (await res.json()) as {
+    history?: RawHistory[];
+    history_past?: Record<string, string | number>[];
+  };
   const rows: HistoryRow[] = (body.history ?? []).map((h) => ({
     round: h.round,
     minutes: h.minutes,
@@ -104,8 +133,34 @@ async function fetchOne(playerId: number): Promise<HistoryRow[]> {
     points: h.total_points,
   }));
 
-  cache.set(playerId, { at: Date.now(), rows });
-  return rows;
+  // The last completed season, which anchors early-season projections when
+  // this season has barely any minutes in it.
+  const past = body.history_past ?? [];
+  const last = past.length > 0 ? past[past.length - 1] : undefined;
+  const previous: PastSeason | undefined = last
+    ? {
+        seasonName: String(last.season_name ?? ''),
+        minutes: num(last.minutes),
+        starts: num(last.starts),
+        goals: num(last.goals_scored),
+        assists: num(last.assists),
+        xg: num(last.expected_goals),
+        xa: num(last.expected_assists),
+        cleanSheets: num(last.clean_sheets),
+        goalsConceded: num(last.goals_conceded),
+        saves: num(last.saves),
+        bonus: num(last.bonus),
+        bps: num(last.bps),
+        defcon: num(last.defensive_contribution),
+        yellow: num(last.yellow_cards),
+        red: num(last.red_cards),
+        points: num(last.total_points),
+      }
+    : undefined;
+
+  const value: PlayerHistory = { rows, previous };
+  cache.set(playerId, { at: Date.now(), value });
+  return value;
 }
 
 /**
@@ -114,9 +169,9 @@ async function fetchOne(playerId: number): Promise<HistoryRow[]> {
  * A player whose history cannot be fetched is simply omitted -- the projection
  * falls back to season totals for them rather than the whole analysis failing.
  */
-export async function fetchHistories(playerIds: number[]): Promise<Map<number, HistoryRow[]>> {
+export async function fetchHistories(playerIds: number[]): Promise<Map<number, PlayerHistory>> {
   const unique = [...new Set(playerIds)];
-  const out = new Map<number, HistoryRow[]>();
+  const out = new Map<number, PlayerHistory>();
   let cursor = 0;
 
   const workers = Array.from({ length: Math.min(CONCURRENCY, unique.length) }, async () => {

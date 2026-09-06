@@ -71,6 +71,16 @@ export interface PlayerState {
   season: StatLine;
   /** The last few gameweeks only, for rotation and form. */
   recent: StatLine;
+  /**
+   * Last season's totals, where the player has them.
+   *
+   * In August three matches is almost no evidence, and shrinking toward a flat
+   * position prior throws away the fact that we know what this player did over
+   * a full season. A promoted or newly signed player simply has none.
+   */
+  previous?: StatLine;
+  /** Matches the player's club played in that previous season. */
+  previousTeamGames?: number;
   /** Gameweeks the player's club has played, the denominator for start share. */
   teamGames: number;
 }

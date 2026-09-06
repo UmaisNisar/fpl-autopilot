@@ -52,6 +52,9 @@ export interface Appearance {
   wasHome: boolean;
 }
 
+/** Last season's totals for a player, keyed by the current season's element id. */
+export type PreviousSeason = Map<number, { line: StatLine; teamGames: number }>;
+
 export interface SeasonData {
   season: string;
   /** Scoring rules in force that season, detected from the data itself. */
@@ -62,6 +65,11 @@ export interface SeasonData {
   byRound: Map<number, Appearance[]>;
   /** Every gameweek that has data. */
   rounds: number[];
+  /**
+   * Last season, linked through the stable player code because element ids are
+   * reassigned every season.
+   */
+  previous?: PreviousSeason;
 }
 
 const normalisePosition = (raw: string): PositionShort => {
@@ -70,7 +78,88 @@ const normalisePosition = (raw: string): PositionShort => {
   return 'MID';
 };
 
+/** The season before this one, e.g. 2024-25 for 2025-26. */
+export function previousSeasonName(season: string): string {
+  const [start] = season.split('-').map(Number);
+  if (!Number.isFinite(start)) return '';
+  return `${start - 1}-${String((start % 100)).padStart(2, '0')}`;
+}
+
+/**
+ * Build last season's totals keyed by *this* season's element ids.
+ *
+ * FPL reassigns element ids each season, so the join has to go through the
+ * stable `code` in players_raw.csv.
+ */
+export function loadPreviousSeason(season: string, dir = 'data'): PreviousSeason | undefined {
+  const prior = previousSeasonName(season);
+  if (!prior) return undefined;
+
+  const priorDir = `${dir}/${prior}`;
+  if (!existsSync(`${priorDir}/players_raw.csv`) || !existsSync(`${dir}/${season}/players_raw.csv`)) {
+    return undefined;
+  }
+
+  const codeToCurrentId = new Map<number, number>();
+  for (const row of readCsv(`${dir}/${season}/players_raw.csv`)) {
+    codeToCurrentId.set(n(row.code), n(row.id));
+  }
+
+  const priorIdToCode = new Map<number, number>();
+  for (const row of readCsv(`${priorDir}/players_raw.csv`)) {
+    priorIdToCode.set(n(row.id), n(row.code));
+  }
+
+  const priorTeams = readCsv(`${priorDir}/teams.csv`).map((t) => ({ id: n(t.id), name: t.name }));
+  const priorTeamName = new Map(priorTeams.map((t) => [t.name, t.id]));
+
+  const lines = new Map<number, StatLine>();
+  const teamMatches = new Map<number, Set<number>>();
+
+  for (let gw = 1; gw <= 38; gw++) {
+    const path = `${priorDir}/gws/gw${gw}.csv`;
+    if (!existsSync(path)) continue;
+
+    for (const a of dedupe(readCsv(path).map((r) => toAppearance(r, gw, priorTeamName)))) {
+      const code = priorIdToCode.get(a.element);
+      if (code === undefined) continue;
+      const currentId = codeToCurrentId.get(code);
+      if (currentId === undefined) continue;
+
+      if (!lines.has(currentId)) lines.set(currentId, emptyStatLine());
+      accumulate(lines.get(currentId)!, a);
+
+      const fixtures = teamMatches.get(currentId) ?? new Set<number>();
+      fixtures.add(a.fixture);
+      teamMatches.set(currentId, fixtures);
+    }
+  }
+
+  const out: PreviousSeason = new Map();
+  for (const [id, line] of lines) {
+    // The player's own game count is the right denominator for a start rate:
+    // it already excludes matches played before a mid-season transfer.
+    out.set(id, { line, teamGames: Math.max(line.games, teamMatches.get(id)?.size ?? 0) });
+  }
+  return out;
+}
+
+/**
+ * Parsing a season means reading forty CSVs, and loading last season on top
+ * doubles that. The tuner calls this in a loop, so hold the result.
+ */
+const seasonCache = new Map<string, SeasonData>();
+
 export function loadSeason(season: string, dir = 'data'): SeasonData {
+  const cacheKey = `${dir}/${season}`;
+  const cached = seasonCache.get(cacheKey);
+  if (cached) return cached;
+  const loaded = parseSeason(season, dir);
+  seasonCache.set(cacheKey, loaded);
+  return loaded;
+}
+
+function parseSeason(season: string, dir: string): SeasonData {
   const base = `${dir}/${season}`;
 
   const teamRows = readCsv(`${base}/teams.csv`);
@@ -109,7 +198,15 @@ export function loadSeason(season: string, dir = 'data'): SeasonData {
     (byRound.get(gw) ?? []).some((a) => a.defcon > 0),
   );
 
-  return { season, rules: { defensiveContribution }, teams, fixtures, byRound, rounds };
+  return {
+    season,
+    rules: { defensiveContribution },
+    teams,
+    fixtures,
+    byRound,
+    rounds,
+    previous: loadPreviousSeason(season, dir),
+  };
 }
 
 /** Gameweeks where FPL's own expected-points column is actually populated. */
@@ -251,6 +348,8 @@ export function buildWorld(season: SeasonData, event: number, weights: Weights):
     news: '',
     season: seasonLines.get(a.element) ?? emptyStatLine(),
     recent: recentLines.get(a.element) ?? emptyStatLine(),
+    previous: season.previous?.get(a.element)?.line,
+    previousTeamGames: season.previous?.get(a.element)?.teamGames,
     teamGames: teamGames.get(a.teamId) ?? history.length,
   }));
 

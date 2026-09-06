@@ -81,16 +81,24 @@ function selectionRate(
   seasonCount: number,
   seasonGames: number,
   weights: Weights,
+  /** Last season's rate for the same measure, when the player has one. */
+  previousRate?: number,
 ): number {
+  // A player who started 35 of 38 last season is a different prior from the
+  // flat default a promoted or newly signed player has to take. Zero weight
+  // means genuinely ignored, not merely down-weighted -- otherwise the switch
+  // that decides whether this earns its place does not actually switch.
+  const usePrevious = weights.previousStartWeight > 0 && previousRate !== undefined;
+  const prior = usePrevious ? (previousRate as number) : weights.startPrior;
+  const priorStrength = usePrevious
+    ? weights.startPriorStrength + weights.previousStartWeight * 10
+    : weights.startPriorStrength;
   // With no recent window at all, season evidence is all there is. Weighting it
   // down would shrink a nailed starter toward the prior for no reason.
   if (recentGames <= 0) {
-    const denominator = seasonGames + weights.startPriorStrength;
-    if (denominator <= 0) return weights.startPrior;
-    return Math.max(
-      0,
-      Math.min(1, (seasonCount + weights.startPrior * weights.startPriorStrength) / denominator),
-    );
+    const denominator = seasonGames + priorStrength;
+    if (denominator <= 0) return prior;
+    return Math.max(0, Math.min(1, (seasonCount + prior * priorStrength) / denominator));
   }
 
   const wr = weights.minutesRecencyWeight;
@@ -100,11 +108,10 @@ function selectionRate(
   const olderCount = Math.max(0, seasonCount - recentCount);
   const olderGames = Math.max(0, seasonGames - recentGames);
 
-  const numerator =
-    wr * recentCount + ws * olderCount + weights.startPrior * weights.startPriorStrength;
-  const denominator = wr * recentGames + ws * olderGames + weights.startPriorStrength;
+  const numerator = wr * recentCount + ws * olderCount + prior * priorStrength;
+  const denominator = wr * recentGames + ws * olderGames + priorStrength;
 
-  if (denominator <= 0) return weights.startPrior;
+  if (denominator <= 0) return prior;
   return Math.max(0, Math.min(1, numerator / denominator));
 }
 
@@ -128,12 +135,23 @@ export function modelMinutes(player: PlayerState, weights: Weights): MinutesMode
 
   // Selection is estimated as a weighted count, so recent evidence dominates
   // and a thin sample is pulled toward the prior rather than toward 1.0.
+  const previousGames = player.previousTeamGames ?? 0;
+  const previousStartRate =
+    player.previous && previousGames > 0
+      ? Math.min(1, player.previous.starts / previousGames)
+      : undefined;
+  const previousPlayRate =
+    player.previous && previousGames > 0
+      ? Math.min(1, player.previous.appearances / previousGames)
+      : undefined;
+
   const startRate = selectionRate(
     player.recent.starts,
     recentGames,
     player.season.starts,
     seasonGames,
     weights,
+    previousStartRate,
   );
   const playRate = selectionRate(
     player.recent.appearances,
@@ -141,6 +159,7 @@ export function modelMinutes(player: PlayerState, weights: Weights): MinutesMode
     player.season.appearances,
     seasonGames,
     weights,
+    previousPlayRate,
   );
 
   const startProbability = Math.max(0, Math.min(1, startRate));
