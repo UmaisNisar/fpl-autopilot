@@ -5,8 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ManualSquad, SquadPlayer, TeamSnapshot } from '@/lib/fpl/model';
 import type { PlanResult } from '@/lib/gemini/plan';
+import { RefreshCw } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AnalyzeButton } from './AnalyzeButton';
 import { EngineBreakdown } from './EngineBreakdown';
 import { ManagerGate } from './ManagerGate';
@@ -76,6 +79,32 @@ function parseConfiguredSquad(
   };
 }
 
+/**
+ * How long ago the squad was read from FPL.
+ *
+ * Worth showing next to the refresh control: the squad on screen is only as
+ * current as the last fetch, and a transfer made since then will not appear
+ * until it is reloaded.
+ */
+function FetchedAt({ iso }: { iso: string }) {
+  const [label, setLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    const render = () => {
+      const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+      if (seconds < 60) setLabel('just now');
+      else if (seconds < 3600) setLabel(`${Math.floor(seconds / 60)}m ago`);
+      else setLabel(`${Math.floor(seconds / 3600)}h ago`);
+    };
+    render();
+    const id = setInterval(render, 30_000);
+    return () => clearInterval(id);
+  }, [iso]);
+
+  // Rendered only after mount, so the server and client markup agree.
+  return label ? <span className="text-[10px] text-faint">updated {label}</span> : null;
+}
+
 /** Local formation label so the pre-analysis pitch matches the plan's format. */
 function formationOf(xi: SquadPlayer[]): string {
   const count = (pos: string) => xi.filter((p) => p.position === pos).length;
@@ -107,43 +136,100 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
     setReady(true);
   }, [defaultManagerId]);
 
-  const loadTeam = useCallback(async (id: number, squad?: ManualSquad | null) => {
+  /**
+   * Load the squad, preferring the live API over anything typed in.
+   *
+   * A manually entered squad is a stand-in for one specific situation: the API
+   * hides a team until that manager's first deadline has passed. The moment it
+   * will serve the real thing, that is the truth -- so the API is always asked
+   * first, and the manual squad is used only when it answers NO_SQUAD.
+   *
+   * Getting this precedence wrong left the app showing a stale hand-typed team
+   * long after the real one became available.
+   */
+  const loadTeam = useCallback(
+    async (id: number, fallbackSquad?: ManualSquad | null, force = false) => {
     setLoading(true);
     setLoadError(null);
     setResult(null);
     setAnalyseError(null);
 
-    try {
-      // A stored manual squad is posted; otherwise ask the API for the real one.
-      const res = squad
-        ? await fetch('/api/team', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ managerId: id, squad }),
-          })
-        : await fetch(`/api/team?managerId=${id}`);
-
-      if (!res.ok) {
-        const { error, needsManualSquad } = await readError(res, 'Could not load that team.');
-        setSnapshot(null);
-        setNeedsSquad(Boolean(needsManualSquad));
-        setLoadError(error ?? null);
-        // Remember the ID anyway -- it is valid, just not readable yet.
-        if (needsManualSquad) window.localStorage.setItem(STORAGE_KEY, String(id));
-        return;
-      }
-
-      setSnapshot((await res.json()) as TeamSnapshot);
+    const useSnapshot = (snapshotData: TeamSnapshot) => {
+      setSnapshot(snapshotData);
       setNeedsSquad(false);
       setLoadError(null);
       window.localStorage.setItem(STORAGE_KEY, String(id));
+    };
+
+    try {
+      const live = await fetch(`/api/team?managerId=${id}${force ? '&refresh=1' : ''}`);
+
+      if (live.ok) {
+        useSnapshot((await live.json()) as TeamSnapshot);
+        // The real squad supersedes anything stored, so drop the stand-in
+        // rather than let it resurface later.
+        window.localStorage.removeItem(`${SQUAD_KEY}:${id}`);
+        setManualSquad(null);
+        return;
+      }
+
+      const { error, needsManualSquad } = await readError(live, 'Could not load that team.');
+
+      if (!needsManualSquad) {
+        setSnapshot(null);
+        setNeedsSquad(false);
+        setLoadError(error ?? null);
+        return;
+      }
+
+      // The API cannot expose this squad yet. Fall back to the entered one.
+      window.localStorage.setItem(STORAGE_KEY, String(id));
+
+      if (!fallbackSquad) {
+        setSnapshot(null);
+        setNeedsSquad(true);
+        setLoadError(error ?? null);
+        return;
+      }
+
+      const manual = await fetch('/api/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managerId: id, squad: fallbackSquad }),
+      });
+
+      if (!manual.ok) {
+        const manualError = await readError(manual, 'Could not load that squad.');
+        setSnapshot(null);
+        setNeedsSquad(true);
+        setLoadError(manualError.error ?? null);
+        return;
+      }
+
+      setManualSquad(fallbackSquad);
+      useSnapshot((await manual.json()) as TeamSnapshot);
     } catch {
       setLoadError('Could not reach the server.');
       setSnapshot(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  },
+    [],
+  );
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  /** Pull the squad again from the FPL API, ignoring anything cached. */
+  const refresh = useCallback(async () => {
+    if (managerId === null || refreshing) return;
+    setRefreshing(true);
+    try {
+      await loadTeam(managerId, manualSquad, true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [managerId, manualSquad, loadTeam, refreshing]);
 
   useEffect(() => {
     if (managerId === null) return;
@@ -353,9 +439,32 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
               transition={{ duration: 0.5, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
               className="flex flex-col gap-2"
             >
-              <span className="eyebrow px-1">
-                {result ? 'Recommended lineup' : 'Your squad'}
-              </span>
+              <div className="flex items-center justify-between gap-3 px-1">
+                <span className="eyebrow">
+                  {result ? 'Recommended lineup' : 'Your squad'}
+                </span>
+
+                <div className="flex items-center gap-2">
+                  {snapshot && <FetchedAt iso={snapshot.fetchedAt} />}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={refresh}
+                        disabled={refreshing || loading}
+                        aria-label="Reload squad from FPL"
+                        className="text-faint hover:text-brand"
+                      >
+                        <RefreshCw className={refreshing ? 'animate-spin' : undefined} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Reload from FPL — use this after making a transfer
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
               <Pitch state={pitchState} />
             </motion.div>
           )}

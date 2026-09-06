@@ -45,7 +45,22 @@ type CacheEntry = { at: number; value: unknown };
 const memo = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<unknown>>();
 
-async function get<T>(path: string, ttlSeconds: number): Promise<T> {
+/**
+ * Whether a resource may sit in Next's persistent, cross-restart fetch cache.
+ *
+ * Shared reference data (players, fixtures) is slow-moving and safe to keep.
+ * A manager's own entry, picks and history are not: they change the moment a
+ * transfer is made or a gameweek ticks over, and a stale copy surviving a
+ * restart is how this app once reported 0 points and no rank for a team that
+ * had already played.
+ */
+type CacheMode = 'shared' | 'per-manager';
+
+async function get<T>(
+  path: string,
+  ttlSeconds: number,
+  mode: CacheMode = 'shared',
+): Promise<T> {
   const key = path;
   const hit = memo.get(key);
   if (hit && Date.now() - hit.at < ttlSeconds * 1000) return hit.value as T;
@@ -59,7 +74,12 @@ async function get<T>(path: string, ttlSeconds: number): Promise<T> {
     try {
       res = await fetch(`${BASE}${path}`, {
         headers: HEADERS,
-        next: { revalidate: ttlSeconds },
+        // Per-manager data is only ever held in the short-lived in-process
+        // memo above, which dies with the process and cannot go stale across
+        // a restart or deploy.
+        ...(mode === 'shared'
+          ? { next: { revalidate: ttlSeconds } }
+          : { cache: 'no-store' as const }),
       });
     } catch (cause) {
       throw new FplError(`Could not reach the FPL API (${path}).`, 503);
@@ -104,4 +124,15 @@ export const getEntryHistory = (managerId: number) =>
 /** Test hook: drop everything so a fetch definitely hits the network. */
 export function clearFplCache() {
   memo.clear();
+}
+
+/**
+ * Drop one manager's cached responses, so an explicit refresh really does go
+ * back to the FPL API rather than replaying the last minute's answer.
+ */
+export function invalidateManager(managerId: number) {
+  const prefix = `/entry/${managerId}/`;
+  for (const key of [...memo.keys()]) {
+    if (key === prefix || key.startsWith(prefix)) memo.delete(key);
+  }
 }

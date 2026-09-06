@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { FplError } from '@/lib/fpl/client';
+import { FplError, invalidateManager } from '@/lib/fpl/client';
 import { buildTeamSnapshot } from '@/lib/fpl/service';
 import { isManagerAllowed, parseManualSquad } from '@/lib/fpl/manual';
 
@@ -28,7 +28,8 @@ function errorResponse(error: unknown, managerId: number) {
 
 /** GET /api/team?managerId=1234567 -- the squad the API already knows about. */
 export async function GET(request: Request) {
-  const managerId = parseManagerId(new URL(request.url).searchParams.get('managerId'));
+  const params = new URL(request.url).searchParams;
+  const managerId = parseManagerId(params.get('managerId'));
 
   if (managerId === null) {
     return NextResponse.json(
@@ -43,6 +44,10 @@ export async function GET(request: Request) {
       { status: 403 },
     );
   }
+
+  // An explicit refresh must bypass the in-process cache, or the button would
+  // replay the same answer for a minute and look broken.
+  if (params.get('refresh') === '1') invalidateManager(managerId);
 
   try {
     return NextResponse.json(await buildTeamSnapshot(managerId));

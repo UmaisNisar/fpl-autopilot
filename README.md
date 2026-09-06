@@ -176,8 +176,12 @@ integration is connected.
 The public API will not reveal a squad until the manager has had a deadline
 pass. Setting `NEXT_PUBLIC_DEFAULT_SQUAD` and `NEXT_PUBLIC_DEFAULT_BANK` pins
 the fifteen so the app opens straight onto the team on any device, instead of
-asking for them again. Once the first deadline passes, the real squad loads
-from the API and these are ignored.
+asking for them again.
+
+The API is always asked **first**, and a pinned or hand-entered squad is used
+only when it answers `NO_SQUAD`. Once that first deadline passes the real squad
+takes over automatically and any stored stand-in is discarded, so a hand-typed
+team cannot outlive its usefulness.
 
 Bank has to be stated rather than derived. FPL locks in what you paid, so a
 player rising 0.1m raises your squad value without touching your bank —
@@ -270,9 +274,16 @@ scripts/
                            tuning, version tracking
 ```
 
-Responses are cached in-process — fifteen minutes for the player database, an
-hour for fixtures, five minutes for your own team — and concurrent requests for
-the same resource are collapsed into one fetch.
+Shared reference data (players, fixtures) is cached both in-process and in
+Next's persistent fetch cache — fifteen minutes and an hour respectively.
+
+A manager's own entry, picks and history are deliberately **not** in the
+persistent cache. They change the moment a transfer is made or a gameweek ticks
+over, and a copy surviving a restart is how the app once reported 0 points for a
+team that had already played. They are held only in a sixty-second in-process
+memo, and the refresh control beside the squad clears even that.
+
+Concurrent requests for the same resource are collapsed into one fetch.
 
 ---
 
