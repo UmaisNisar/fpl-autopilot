@@ -56,6 +56,19 @@ function loadStoredSquad(managerId: number): ManualSquad | null {
 }
 
 /**
+ * A hand-entered squad describes one gameweek and expires with it.
+ *
+ * Once that deadline passes the API knows the real team, so keeping the
+ * correction would show a squad that has since changed -- which is exactly how
+ * a pinned GW3 team ended up on screen during GW4.
+ */
+function isCurrent(squad: ManualSquad | null, event: number | null): boolean {
+  if (!squad) return false;
+  if (squad.forEvent === undefined) return true;
+  return event === null || squad.forEvent >= event;
+}
+
+/**
  * A squad supplied by configuration, for the case the public API cannot cover:
  * before the first deadline it will not reveal the team, so the fifteen can be
  * pinned here instead of retyped on every device.
@@ -168,11 +181,27 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
       const live = await fetch(`/api/team?managerId=${id}${force ? '&refresh=1' : ''}`);
 
       if (live.ok) {
-        applySnapshot((await live.json()) as TeamSnapshot);
-        // The real squad supersedes anything stored, so drop the stand-in
-        // rather than let it resurface later.
+        const snapshotData = (await live.json()) as TeamSnapshot;
+
+        // The API only ever knows the team as of the last deadline. A
+        // correction made for the gameweek now being planned is more current,
+        // so it wins; an older one has been overtaken and is discarded.
+        if (fallbackSquad && isCurrent(fallbackSquad, snapshotData.gameweek.id)) {
+          const corrected = await fetch('/api/team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ managerId: id, squad: fallbackSquad }),
+          });
+          if (corrected.ok) {
+            setManualSquad(fallbackSquad);
+            applySnapshot((await corrected.json()) as TeamSnapshot);
+            return;
+          }
+        }
+
         window.localStorage.removeItem(`${SQUAD_KEY}:${id}`);
         setManualSquad(null);
+        applySnapshot(snapshotData);
         return;
       }
 
@@ -355,18 +384,17 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
         </div>
 
         <div className="flex items-center gap-2">
-          {snapshot?.manualSquad && (
+          {snapshot && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 setNeedsSquad(true);
-                setSnapshot(null);
                 setResult(null);
               }}
               className="border-line text-dim hover:border-brand/40 hover:text-brand"
             >
-              Edit squad
+              {snapshot.squadSource === 'entered' ? 'Edit squad' : 'Update squad'}
             </Button>
           )}
           <Button
@@ -388,15 +416,25 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
         </div>
       )}
 
-      {needsSquad && !snapshot && (
+      {needsSquad && (
         <SquadBuilder
+          gameweek={snapshot?.gameweek.id}
           reason={
             loadError ??
-            'Re-enter your fifteen. This replaces the squad saved on this device.'
+            'FPL does not publish transfers made for a gameweek that has not kicked off, so the squad above is your team as it stood at the last deadline. Correct it here and the analysis will use it.'
           }
           busy={loading}
+          initialSquad={
+            snapshot
+              ? {
+                  playerIds: snapshot.squad.map((p) => p.id),
+                  bank: snapshot.finances.bank,
+                  freeTransfers: snapshot.finances.freeTransfers,
+                }
+              : null
+          }
           onSubmit={saveSquad}
-          onCancel={reset}
+          onCancel={() => (snapshot ? setNeedsSquad(false) : reset())}
         />
       )}
 

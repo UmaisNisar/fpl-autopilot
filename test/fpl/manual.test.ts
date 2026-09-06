@@ -54,6 +54,27 @@ describe('parsing a manual squad', () => {
   it('rounds the bank to a tenth of a million', () => {
     expect(parseManualSquad({ playerIds: ids, bank: 4.23456 })?.bank).toBe(4.2);
   });
+
+  it('takes a stated free-transfer count within the range the game allows', () => {
+    // Derived free transfers go stale the moment a transfer is made for a
+    // gameweek that has not kicked off, so a correction can override them.
+    expect(parseManualSquad({ playerIds: ids, freeTransfers: 0 })?.freeTransfers).toBe(0);
+    expect(parseManualSquad({ playerIds: ids, freeTransfers: 5 })?.freeTransfers).toBe(5);
+    expect(parseManualSquad({ playerIds: ids })?.freeTransfers).toBeUndefined();
+    // Outside what the game allows, or not a whole number.
+    expect(parseManualSquad({ playerIds: ids, freeTransfers: 6 })?.freeTransfers).toBeUndefined();
+    expect(parseManualSquad({ playerIds: ids, freeTransfers: -1 })?.freeTransfers).toBeUndefined();
+    expect(parseManualSquad({ playerIds: ids, freeTransfers: 1.5 })?.freeTransfers).toBeUndefined();
+  });
+
+  it('records the gameweek a correction was made for', () => {
+    // A correction describes one gameweek and expires with it; without this
+    // the app would keep showing a squad the API has since caught up on.
+    expect(parseManualSquad({ playerIds: ids, forEvent: 4 })?.forEvent).toBe(4);
+    expect(parseManualSquad({ playerIds: ids })?.forEvent).toBeUndefined();
+    expect(parseManualSquad({ playerIds: ids, forEvent: 0 })?.forEvent).toBeUndefined();
+    expect(parseManualSquad({ playerIds: ids, forEvent: 'four' })?.forEvent).toBeUndefined();
+  });
 });
 
 describe('deployment manager lock', () => {

@@ -36,6 +36,8 @@ interface Props {
   reason: string;
   busy?: boolean;
   error?: string | null;
+  /** Pre-selected fifteen, when correcting a team rather than drafting one. */
+  initialSquad?: { playerIds: number[]; bank: number; freeTransfers: number } | null;
   onSubmit: (squad: ManualSquad) => void;
   onCancel: () => void;
 }
@@ -47,13 +49,28 @@ interface Props {
  * their first deadline has passed. Enforces the same rules the game does, so
  * whatever leaves here is a legal squad.
  */
-export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel }: Props) {
+export function SquadBuilder({
+  gameweek,
+  reason,
+  busy,
+  error,
+  initialSquad,
+  onSubmit,
+  onCancel,
+}: Props) {
+  // Correcting an existing team needs the bank and free transfers stated,
+  // because neither can be read from the API for an upcoming gameweek.
+  const correcting = Boolean(initialSquad);
   const [players, setPlayers] = useState<PlayerOption[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<PlayerOption[]>([]);
   const [tab, setTab] = useState<PositionShort>('GKP');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('points');
+  const [bank, setBank] = useState(initialSquad ? String(initialSquad.bank) : '');
+  const [freeTransfers, setFreeTransfers] = useState(
+    initialSquad ? String(initialSquad.freeTransfers) : '',
+  );
 
   useEffect(() => {
     let live = true;
@@ -70,8 +87,20 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
     };
   }, []);
 
+  const preselectKey = initialSquad?.playerIds.join(',');
+  useEffect(() => {
+    if (!players || !preselectKey) return;
+    const wanted = new Set(preselectKey.split(',').map(Number));
+    // Seeded once, when the player list arrives; edited freely from then on.
+    setSelected(players.filter((p) => wanted.has(p.id)));
+  }, [players, preselectKey]);
+
   const spent = selected.reduce((sum, p) => sum + p.price, 0);
-  const remaining = Math.round((BUDGET - spent) * 10) / 10;
+  // Drafting a squad spends a fixed 100m. Correcting one is bounded by what the
+  // manager says is in the bank, since squad value has drifted with prices.
+  const remaining = correcting
+    ? Math.round(Number(bank || 0) * 10) / 10
+    : Math.round((BUDGET - spent) * 10) / 10;
   const counts = useMemo(() => {
     const c: Record<PositionShort, number> = { GKP: 0, DEF: 0, MID: 0, FWD: 0 };
     for (const p of selected) c[p.pos] += 1;
@@ -130,8 +159,10 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
     onSubmit({
       playerIds: ordered.map((p) => p.id),
       captainId: xi.reduce((best, p) => (p.points > best.points ? p : best), xi[0]).id,
-      viceCaptainId:
-        [...xi].sort((a, b) => b.points - a.points)[1]?.id ?? xi[0].id,
+      viceCaptainId: [...xi].sort((a, b) => b.points - a.points)[1]?.id ?? xi[0].id,
+      bank: correcting ? Math.max(0, Number(bank || 0)) : undefined,
+      freeTransfers: correcting ? Math.max(0, Number(freeTransfers || 0)) : undefined,
+      forEvent: gameweek,
     });
   }
 
@@ -158,7 +189,7 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
           </span>
         </div>
         <div className="flex flex-col gap-1 px-4 py-3">
-          <span className="eyebrow">Remaining</span>
+          <span className="eyebrow">{correcting ? 'In the bank' : 'Remaining'}</span>
           <span
             className={`nums text-lg font-bold ${remaining < 0 ? 'text-rose' : 'text-text'}`}
           >
@@ -178,6 +209,35 @@ export function SquadBuilder({ gameweek, reason, busy, error, onSubmit, onCancel
           </div>
         ))}
       </div>
+
+      {correcting && (
+        <div className="flex flex-wrap items-end gap-5 border-t border-line px-5 py-4 sm:px-6">
+          <label className="flex flex-col gap-1.5">
+            <span className="eyebrow">Bank</span>
+            <Input
+              inputMode="decimal"
+              value={bank}
+              onChange={(e) => setBank(e.target.value.replace(/[^0-9.]/g, ''))}
+              className="nums h-9 w-24 border-line bg-white/[0.03] text-center"
+              aria-label="Money in the bank, in millions"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="eyebrow">Free transfers</span>
+            <Input
+              inputMode="numeric"
+              value={freeTransfers}
+              onChange={(e) => setFreeTransfers(e.target.value.replace(/[^0-9]/g, ''))}
+              className="nums h-9 w-20 border-line bg-white/[0.03] text-center"
+              aria-label="Free transfers remaining"
+            />
+          </label>
+          <p className="max-w-sm text-[11px] leading-relaxed text-faint">
+            Both are on the FPL transfers page. Neither can be read from the API for a gameweek
+            that has not kicked off yet.
+          </p>
+        </div>
+      )}
 
       {/* Chosen players. */}
       {selected.length > 0 && (

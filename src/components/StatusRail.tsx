@@ -38,6 +38,11 @@ function Stat({
 export function StatusRail({ snapshot }: Props) {
   const { gameweek, finances, manager, chips } = snapshot;
 
+  // FPL publishes nothing about a gameweek that has not kicked off, so an
+  // API-sourced squad is the team as it stood at the last deadline. Saying so
+  // is the difference between out of date and quietly wrong.
+  const fromLastDeadline = snapshot.squadSource === 'last-deadline';
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
@@ -66,6 +71,14 @@ export function StatusRail({ snapshot }: Props) {
         </div>
 
         <div className="flex flex-col gap-1 sm:items-end">
+          {fromLastDeadline && (
+            <Badge
+              variant="outline"
+              className="mb-1 border-amber/30 bg-amber/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-amber/90"
+            >
+              As of GW{gameweek.sourceEvent} deadline
+            </Badge>
+          )}
           <span className="eyebrow">Chips left</span>
           <div className="flex flex-wrap gap-1.5">
             {chips.available.length === 0 ? (
@@ -92,8 +105,17 @@ export function StatusRail({ snapshot }: Props) {
       </div>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-line sm:grid-cols-3 lg:grid-cols-5 lg:divide-y-0">
-        <Stat label="Team value" value={formatPrice(finances.teamValue)} />
-        <Stat label="Bank" value={formatPrice(finances.bank)} accent={finances.bank > 0} />
+        <Stat
+          label="Team value"
+          value={formatPrice(finances.teamValue)}
+          hint={fromLastDeadline ? `as of GW${snapshot.gameweek.sourceEvent}` : undefined}
+        />
+        <Stat
+          label="Bank"
+          value={formatPrice(finances.bank)}
+          accent={finances.bank > 0}
+          hint={fromLastDeadline ? `as of GW${snapshot.gameweek.sourceEvent}` : undefined}
+        />
         <Stat
           label="Free transfers"
           value={finances.unlimitedTransfers ? 'Unlimited' : String(finances.freeTransfers)}
@@ -103,7 +125,7 @@ export function StatusRail({ snapshot }: Props) {
               ? 'before your first deadline'
               : finances.freeTransfersInferred
                 ? 'derived from history'
-                : undefined
+                : 'as you entered it'
           }
         />
         <Stat label="Total points" value={String(manager.overallPoints)} />

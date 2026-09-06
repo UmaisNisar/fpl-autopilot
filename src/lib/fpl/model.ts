@@ -72,6 +72,13 @@ export interface GameweekInfo {
   averageScore: number | null;
 }
 
+/** Where the squad on screen came from, and therefore how current it is. */
+export type SquadSource =
+  /** Read from the API: the team as it stood at the last deadline. */
+  | 'last-deadline'
+  /** Corrected by hand, for the upcoming gameweek. */
+  | 'entered';
+
 export interface TeamSnapshot {
   manager: {
     id: number;
@@ -103,6 +110,14 @@ export interface TeamSnapshot {
   fetchedAt: string;
   /** True when the squad came from manual entry rather than the API. */
   manualSquad: boolean;
+  /**
+   * How current the squad is.
+   *
+   * FPL does not publish transfers made for an upcoming gameweek -- they appear
+   * only once that deadline passes -- so an API-sourced squad is always the
+   * team as it stood at the *last* deadline, not necessarily as it stands now.
+   */
+  squadSource: SquadSource;
 }
 
 /** A squad the manager typed in, because the API cannot expose theirs yet. */
@@ -119,6 +134,16 @@ export interface ManualSquad {
    * Deriving it would quietly under-report the budget by the total rise.
    */
   bank?: number;
+  /** Free transfers remaining, when the derived figure is out of date. */
+  freeTransfers?: number;
+  /**
+   * The gameweek this squad describes.
+   *
+   * A correction is only valid for the gameweek it was made for. Once that
+   * deadline passes the API knows the real team, and holding on to a
+   * hand-entered one would show a squad that has since changed.
+   */
+  forEvent?: number;
 }
 
 export const POSITION_ORDER: PositionShort[] = ['GKP', 'DEF', 'MID', 'FWD'];

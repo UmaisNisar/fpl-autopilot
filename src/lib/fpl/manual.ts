@@ -25,12 +25,19 @@ export function parseManualSquad(value: unknown): ManualSquad | null {
   };
 
   const bank = Number(input.bank);
+  const freeTransfers = Number(input.freeTransfers);
+  const forEvent = Number(input.forEvent);
 
   return {
     playerIds: ids,
     captainId: asId(input.captainId),
     viceCaptainId: asId(input.viceCaptainId),
     bank: Number.isFinite(bank) && bank >= 0 ? Math.round(bank * 10) / 10 : undefined,
+    freeTransfers:
+      Number.isInteger(freeTransfers) && freeTransfers >= 0 && freeTransfers <= 5
+        ? freeTransfers
+        : undefined,
+    forEvent: Number.isInteger(forEvent) && forEvent > 0 ? forEvent : undefined,
   };
 }
 

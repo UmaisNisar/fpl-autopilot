@@ -332,12 +332,13 @@ export async function buildTeamSnapshot(
         teamValue: Math.round(teamValue * 10) / 10,
         bank,
         // Before the first deadline the whole team can still be changed freely.
-        freeTransfers: SQUAD_SIZE,
+        freeTransfers: manual.freeTransfers ?? SQUAD_SIZE,
         freeTransfersInferred: false,
-        unlimitedTransfers: true,
+        unlimitedTransfers: manual.freeTransfers === undefined,
       },
       squad: ordered,
       manualSquad: true,
+      squadSource: 'entered',
     };
   }
 
@@ -383,5 +384,6 @@ export async function buildTeamSnapshot(
     },
     squad,
     manualSquad: false,
+    squadSource: 'last-deadline',
   };
 }

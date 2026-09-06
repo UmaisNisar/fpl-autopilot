@@ -171,6 +171,23 @@ Two things matter for a public deployment of a single-user tool:
 Redeploy with `npx vercel deploy --prod`, or push to `main` if the GitHub
 integration is connected.
 
+### What the API can and cannot see
+
+FPL publishes nothing about a gameweek that has not kicked off. Transfers you
+make for the upcoming deadline, and the bank and free transfers that go with
+them, appear only **after** that deadline passes. `/entry/{id}/transfers/`
+returns nothing for them and `last_deadline_bank` is exactly what it says.
+
+So an API-sourced squad is always your team **as it stood at the last
+deadline** — which the status rail now says out loud rather than presenting as
+current. **Update squad** lets you correct it: the fifteen come pre-filled, and
+you state the bank and free transfers, both of which are on the FPL transfers
+page.
+
+A correction records the gameweek it was made for and expires with it. Once
+that deadline passes the API knows the real team, so keeping a hand-entered one
+would show a squad that has since changed.
+
 ### Before your first deadline
 
 The public API will not reveal a squad until the manager has had a deadline
