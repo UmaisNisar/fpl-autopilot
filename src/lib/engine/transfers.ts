@@ -230,7 +230,7 @@ function evaluateSingles(ctx: SearchContext): TransferOption[] {
 }
 
 function evaluatePairs(ctx: SearchContext & { seeds: TransferOption[] }): TransferOption[] {
-  const { squad, candidates, bank, baseValue, events, index, weights, seeds } = ctx;
+  const { squad, candidates, baseValue, events, index, weights, seeds } = ctx;
   const options: TransferOption[] = [];
 
   for (const seed of seeds) {

@@ -124,19 +124,39 @@ export function computeTeamRatings(
     );
   }
 
-  normalise(attack);
-  normalise(concede);
+  settle(attack, weights);
+  settle(concede, weights);
 
   return { attack, concede };
 }
 
-/** Re-centre a rating map on 1.0 so the league mean stays interpretable. */
-function normalise(ratings: Map<number, number>) {
-  const values = [...ratings.values()];
-  if (values.length === 0) return;
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  if (mean <= 0) return;
-  for (const [id, value] of ratings) ratings.set(id, value / mean);
+/**
+ * Re-centre on 1.0 and hold the clamp.
+ *
+ * Order matters: clamping before normalising does not work, because dividing
+ * by the mean pushes values straight back past the ceiling -- a two-match
+ * sample once came out at 1.92 against a cap of 1.75. Alternating the two
+ * converges in a couple of passes, and the clamps rarely bind at all once a
+ * season is under way.
+ */
+function settle(ratings: Map<number, number>, weights: Weights) {
+  for (let pass = 0; pass < 4; pass++) {
+    const values = [...ratings.values()];
+    if (values.length === 0) return;
+
+    const mean = values.reduce((s, v) => s + v, 0) / values.length;
+    if (mean <= 0) return;
+
+    let clamped = false;
+    for (const [id, value] of ratings) {
+      const centred = value / mean;
+      const bounded = clamp(centred, weights.ratingFloor, weights.ratingCeiling);
+      if (bounded !== centred) clamped = true;
+      ratings.set(id, bounded);
+    }
+
+    if (!clamped) return;
+  }
 }
 
 /** Expected goals for each side of a fixture. */

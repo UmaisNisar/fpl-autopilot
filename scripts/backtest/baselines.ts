@@ -42,7 +42,7 @@ const LEGACY_FDR: Record<number, number> = { 1: 1.25, 2: 1.12, 3: 1.0, 4: 0.88, 
  * because the historical equivalent is the leaking column, so this is the old
  * engine's shape reproduced from data that was genuinely available.
  */
-export function legacyV1(player: PlayerState, world: WorldState, weights: Weights): number {
+export function legacyV1(player: PlayerState, world: WorldState, _weights: Weights): number {
   const form = player.recent.games > 0 ? player.recent.points / player.recent.games : 0;
   const ppg = player.season.games > 0 ? player.season.points / player.season.games : 0;
 

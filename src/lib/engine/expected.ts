@@ -1,4 +1,3 @@
-import type { PositionShort } from '@/lib/fpl/types';
 import {
   ASSIST_POINTS,
   CLEAN_SHEET_POINTS,
@@ -214,10 +213,13 @@ export function projectFixture(
 
   // Affine, and therefore rank-preserving: the order of players is exactly as
   // the model produced it, only the level is corrected. See `calibrationSlope`.
-  const total = Math.max(
-    0,
-    weights.calibrationIntercept + weights.calibrationSlope * Math.max(0, raw),
-  );
+  //
+  // A raw zero stays zero. Otherwise the intercept would hand a suspended or
+  // injured player a fraction of a point, which then leaks into squad
+  // valuations and transfer comparisons.
+  const total = raw <= 0
+    ? 0
+    : Math.max(0, weights.calibrationIntercept + weights.calibrationSlope * raw);
   // Keep the breakdown adding up to the calibrated total.
   const scale = raw > 0 ? total / raw : 1;
 
@@ -316,7 +318,7 @@ export function projectPlayer(
     horizonRaw += p.points;
   }
 
-  const { ceiling, haulProbability } = estimateUpside(player, projections, ctx);
+  const { ceiling, haulProbability } = estimateUpside(player, projections);
 
   return {
     playerId: player.id,
@@ -345,7 +347,6 @@ export function projectPlayer(
 function estimateUpside(
   player: PlayerState,
   projections: FixtureProjection[],
-  ctx: ProjectionContext,
 ): { ceiling: number; haulProbability: number } {
   const nextEvent = projections.length > 0 ? Math.min(...projections.map((p) => p.event)) : null;
   const next = projections.filter((p) => p.event === nextEvent);

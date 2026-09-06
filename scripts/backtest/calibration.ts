@@ -11,7 +11,6 @@
 import { actualPoints, assertNoLeakage, buildWorld, loadSeason } from './season';
 import { projectAll } from '../../src/lib/engine/plan';
 import { DEFAULT_WEIGHTS, ENGINE_VERSION, type Weights } from '../../src/lib/engine/weights';
-import { scorePerformance, type Performance } from '../../src/lib/engine/scoring';
 import type { PositionShort } from '../../src/lib/fpl/types';
 
 const MIN_SEASON_MINUTES = 60;

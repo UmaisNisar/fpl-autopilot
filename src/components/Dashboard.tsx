@@ -129,6 +129,8 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
   const planRef = useRef<HTMLDivElement>(null);
 
   // Remember the manager ID so the app opens straight onto the squad.
+  // localStorage is a browser API, not React state, so reading it on mount is
+  // the intended use of an effect even though it does call setState.
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY) ?? defaultManagerId ?? '';
     const parsed = Number(stored);
@@ -154,7 +156,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
     setResult(null);
     setAnalyseError(null);
 
-    const useSnapshot = (snapshotData: TeamSnapshot) => {
+    const applySnapshot = (snapshotData: TeamSnapshot) => {
       setSnapshot(snapshotData);
       setNeedsSquad(false);
       setLoadError(null);
@@ -165,7 +167,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
       const live = await fetch(`/api/team?managerId=${id}${force ? '&refresh=1' : ''}`);
 
       if (live.ok) {
-        useSnapshot((await live.json()) as TeamSnapshot);
+        applySnapshot((await live.json()) as TeamSnapshot);
         // The real squad supersedes anything stored, so drop the stand-in
         // rather than let it resurface later.
         window.localStorage.removeItem(`${SQUAD_KEY}:${id}`);
@@ -207,7 +209,7 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
       }
 
       setManualSquad(fallbackSquad);
-      useSnapshot((await manual.json()) as TeamSnapshot);
+      applySnapshot((await manual.json()) as TeamSnapshot);
     } catch {
       setLoadError('Could not reach the server.');
       setSnapshot(null);
@@ -233,6 +235,8 @@ export function Dashboard({ defaultManagerId, defaultSquad, defaultBank }: Props
 
   useEffect(() => {
     if (managerId === null) return;
+    // Seeding from storage is exactly what an effect is for: the value lives
+    // in the browser, so it cannot be derived during render.
     const squad = loadStoredSquad(managerId) ?? parseConfiguredSquad(defaultSquad, defaultBank);
     setManualSquad(squad);
     void loadTeam(managerId, squad);

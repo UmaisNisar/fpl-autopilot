@@ -13,11 +13,10 @@
 import { assertNoLeakage, buildWorld, loadSeason, type SeasonData } from './season';
 import { legacyProjections, legacyV1 } from './baselines';
 import { runEngine } from '../../src/lib/engine/plan';
-import { bestEleven, buildEventPoints } from '../../src/lib/engine/squad';
 import { projectAll } from '../../src/lib/engine/plan';
 import { TRANSFER_HIT_COST } from '../../src/lib/engine/scoring';
 import { DEFAULT_WEIGHTS, ENGINE_VERSION, type Weights } from '../../src/lib/engine/weights';
-import type { PlayerProjection, WorldState } from '../../src/lib/engine/types';
+import type { WorldState } from '../../src/lib/engine/types';
 import type { PositionShort } from '../../src/lib/fpl/types';
 
 const SHAPE: Record<PositionShort, number> = { GKP: 2, DEF: 5, MID: 5, FWD: 3 };

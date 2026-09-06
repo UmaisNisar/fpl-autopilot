@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push makes an in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  check:
+    name: Types, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:ci
+
+      - name: Build
+        # The build must not need secrets: a missing Gemini key is a runtime
+        # condition the app handles, not a build failure.
+        run: npm run build
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          if-no-files-found: ignore
+
+  engine:
+    name: Engine backtest
+    runs-on: ubuntu-latest
+    # Only worth the download when engine code actually changed.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'engine')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Cache historical seasons
+        id: seasons
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: fpl-seasons-2023-24-2024-25-2025-26-v1
+
+      - name: Fetch historical seasons
+        if: steps.seasons.outputs.cache-hit != 'true'
+        run: node scripts/fetch-history.mjs 2025-26 2024-25 2023-24
+
+      - name: Scoring rules still match a real season
+        run: npm run verify:scoring
+
+      - name: Backtest integrity and conformance
+        run: npx vitest run test/backtest
+
+      - name: Walk-forward accuracy
+        run: npm run backtest:accuracy 2025-26
+
+      - name: Season simulation
+        run: npm run backtest:simulate 2025-26
+
+      - name: Guard against an engine regression
+        # Fails if the engine stops beating the model it replaced, or if the
+        # season simulation drops below the recorded baseline.
+        run: npx tsx scripts/backtest/guard.ts

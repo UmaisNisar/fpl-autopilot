@@ -15,3 +15,5 @@ next-env.d.ts
 
 # Backtest data cache (see scripts/fetch-history.mjs)
 data/
+test-results/
+coverage/

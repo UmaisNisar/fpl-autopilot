@@ -48,26 +48,6 @@ export function availabilityFactor(player: PlayerState): number {
 }
 
 /**
- * Blend a recent-window rate with a season-long rate.
- *
- * Recent form dominates for rotation questions, but a three-game window is
- * noisy, so the season rate anchors it. When there is no recent window at all
- * (start of season) this degrades to the season rate.
- */
-function blendRate(
-  recentValue: number,
-  recentGames: number,
-  seasonValue: number,
-  seasonGames: number,
-  weights: Weights,
-): number {
-  if (recentGames <= 0) return seasonGames > 0 ? seasonValue : 0;
-  if (seasonGames <= 0) return recentValue;
-  const w = weights.recencyWeight;
-  return w * recentValue + (1 - w) * seasonValue;
-}
-
-/**
  * Weighted-count estimate of how often a player is selected.
  *
  * Recent games carry more weight than older ones, and a prior worth a game or

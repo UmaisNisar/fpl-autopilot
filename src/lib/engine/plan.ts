@@ -11,10 +11,9 @@ import {
   horizonEvents,
   pointsFor,
   type BestEleven,
-  type EventPoints,
 } from './squad';
 import { evaluateTransfers, shouldTransfer, type TransferAnalysis } from './transfers';
-import type { PlayerFixture, PlayerProjection, PlayerState, WorldState } from './types';
+import type { PlayerFixture, PlayerProjection, WorldState } from './types';
 import { DEFAULT_WEIGHTS, ENGINE_VERSION, type Weights } from './weights';
 
 /**
@@ -212,8 +211,6 @@ export function shortlistCandidates(
 function optimalSquad(
   projections: Map<number, PlayerProjection>,
   budget: number,
-  index: EventPoints,
-  event: number,
 ): PlayerProjection[] {
   // Greedy by projected points per million, respecting shape and club limits.
   // Good enough to price a chip; not used to pick a team.
@@ -286,7 +283,7 @@ export function runEngine(input: EngineInput): EngineAnalysis {
   const budget = bank + squad.reduce((sum, p) => sum + p.price, 0);
   const chips = evaluateChips({
     squad: resultingSquad,
-    optimalSquad: optimalSquad(projections, budget, index, world.event),
+    optimalSquad: optimalSquad(projections, budget),
     available: input.chipsAvailable,
     startEvent: world.event,
     index,

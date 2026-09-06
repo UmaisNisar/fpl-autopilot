@@ -26,6 +26,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function Countdown({ epoch }: Props) {
   const [now, setNow] = useState<number | null>(null);
 
+  // The clock is an external source, and reading it during render would make
+  // the server and client markup disagree. Deferring it to an effect is the
+  // point: nothing time-dependent renders until after mount.
   useEffect(() => {
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
